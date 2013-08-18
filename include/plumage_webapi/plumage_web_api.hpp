@@ -14,6 +14,9 @@
 
 class PlumageWebApi : public plumage::PluginEntity {
 
+    const int INTERFACE_VERSION = 1;
+    const int PLUGIN_VERSION = 1;
+
     typedef void* (PlumageWebApi::*Method)(boost::any&);
 
     std::set<CURL*> curlHandles_;
@@ -50,10 +53,10 @@ public:
     }
 
     virtual int getInterfaceVersion() const {
-        return 1;
+        return INTERFACE_VERSION;
     }
     virtual int getPluginVersion() const {
-        return 1;
+        return PLUGIN_VERSION;
     }
     virtual bool isDebug() const {
 #ifdef DEBUG
@@ -96,6 +99,13 @@ public:
 };
 
 class JsonApi {
+public:
+
+    std::string parse(const std::string& in_data, picojson::value& out) const;
+    void encode(const picojson::value& in_data, std::string& out) const;
+};
+
+class XmlApi {
 public:
 
     std::string parse(const std::string& in_data, picojson::value& out) const;

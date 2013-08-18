@@ -4,7 +4,8 @@
 int main(int argc, char const* argv[])
 {
     PlumageWebApi plugin;
-    CURL* handle = (CURL*)plugin.call("createHandle");
+    boost::any nullObj;
+    CURL* handle = (CURL*)plugin.call("createHandle", nullObj);
 
     try {
         std::stringstream ss;

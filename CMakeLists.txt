@@ -28,6 +28,5 @@ set_target_properties(plumage_webapi_st PROPERTIES LINK_FLAGS "-lplumage -lc++ -
 set_target_properties(plumage_webapi PROPERTIES LIBRARY_OUTPUT_DIRECTORY "lib/")
 set_target_properties(plumage_webapi_st PROPERTIES ARCHIVE_OUTPUT_DIRECTORY "lib/")
 
-#ADD_EXECUTABLE(plumage_sample sample/sample.cpp)
-#set_target_properties(plumage_sample PROPERTIES COMPILE_FLAGS "-Wall -I ./include -std=gnu++11 -stdlib=libc++")
-#set_target_properties(plumage_sample PROPERTIES LINK_FLAGS "-lplumage -ldl -lc++ -lcurl -L lib/ -lplumage_webapi")
+INSTALL(TARGETS plumage_webapi_st LIBRARY ARCHIVE DESTINATION lib)
+INSTALL(TARGETS plumage_webapi LIBRARY DESTINATION lib)

@@ -6,6 +6,12 @@
 
 #include "plumage_webapi/plumage_web_api.hpp"
 
+extern "C" plumage::PluginHolder* createPlumageWebApiPlugin() {
+    PlumageWebApi* pif = new PlumageWebApi();
+    plumage::PluginHolder* holder = new plumage::PluginHolder(pif);
+    return holder;
+}
+
 void PlumageWebApi::init() {
     methodList_["createHandle"] = &PlumageWebApi::createHandle;
     methodList_["deleteHandle"] = &PlumageWebApi::deleteHandle;

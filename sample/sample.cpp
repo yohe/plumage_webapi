@@ -17,7 +17,7 @@ int main(int argc, char const* argv[])
         picojson::array::iterator it;
         for (it = arr.begin(); it != arr.end(); it++) {
             picojson::object obj = it->get<picojson::object>();
-            std::cout << obj["name"].to_str() << ": " << obj["full_name"].to_str() << std::endl;
+            std::cout << obj["id"].to_str() << ": " << obj["full_name"].to_str() << " : " << obj["git_url"].to_str() << std::endl;
         }
     } catch (std::exception& e) {
         std::cout << e.what() << std::endl;

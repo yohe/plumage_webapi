@@ -20,6 +20,7 @@ int main(int argc, char const* argv[])
             picojson::object obj = it->get<picojson::object>();
             std::cout << obj["id"].to_str() << ": " << obj["full_name"].to_str() << " : " << obj["git_url"].to_str() << std::endl;
         }
+        delete v;
     } catch (std::exception& e) {
         std::cout << e.what() << std::endl;
     }

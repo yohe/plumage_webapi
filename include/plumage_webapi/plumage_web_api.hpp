@@ -9,6 +9,7 @@
 
 #include <curl/curl.h>
 #include <picojson.h>
+#include <boost/property_tree/xml_parser.hpp>
 
 #include <plumage/plugin_entity.hpp>
 
@@ -39,10 +40,15 @@ class PlumageWebApi : public plumage::PluginEntity {
     void* postOnHttp(boost::any& parameter);
 
     // for auth
-    void* setBasicAuth(boost::any& parameter);
+    //void* setBasicAuth(boost::any& parameter);
 
     // for json
     void* parseJsonData(boost::any& parameter);
+    void* encodeToJsonData(boost::any& parameter);
+
+    // for XML
+    void* parseXmlData(boost::any& parameter);
+    void* encodeToXmlData(boost::any& parameter);
 
 public:
     PlumageWebApi() : plumage::PluginEntity("PlumageWebApi") {
@@ -101,14 +107,15 @@ public:
 class JsonApi {
 public:
 
-    std::string parse(const std::string& in_data, picojson::value& out) const;
-    void encode(const picojson::value& in_data, std::string& out) const;
+    std::string parse(std::istream& in_data, picojson::value& out) const;
+    void encode(const picojson::value& in_data, std::ostream& out) const;
 };
 
 class XmlApi {
 public:
 
-    std::string parse(const std::string& in_data, picojson::value& out) const;
+    void parse(std::istream& in_data, boost::property_tree::ptree& pt) const;
+    void encode(const boost::property_tree::ptree& in_data, std::ostream& out) const;
 };
 
 class HttpApi {

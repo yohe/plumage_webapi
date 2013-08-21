@@ -3,6 +3,7 @@
 #include <iostream>
 #include <ostream>
 #include <fstream>
+#include <utility>
 
 #include "plumage_webapi/plumage_web_api.hpp"
 
@@ -21,8 +22,10 @@ void PlumageWebApi::init() {
     methodList_["uploadFileOnFtp_wait"] = &PlumageWebApi::uploadFileOnFtp_wait;
     methodList_["getOnHttp"] = &PlumageWebApi::getOnHttp;
     methodList_["postOnHttp"] = &PlumageWebApi::postOnHttp;
-    methodList_["setBasicAuth"] = &PlumageWebApi::setBasicAuth;
     methodList_["parseJsonData"] = &PlumageWebApi::parseJsonData;
+    methodList_["encodeToJsonData"] = &PlumageWebApi::encodeToJsonData;
+    methodList_["parseXmlData"] = &PlumageWebApi::parseXmlData;
+    methodList_["encodeToXmlData"] = &PlumageWebApi::encodeToXmlData;
 }
 
 void* PlumageWebApi::createHandle(boost::any& parameter) {
@@ -153,15 +156,12 @@ void* PlumageWebApi::postOnHttp(boost::any& parameter) {
     return nullptr;
 }
 
-void* PlumageWebApi::setBasicAuth(boost::any& parameter) {
-    return nullptr;
-}
 
 void* PlumageWebApi::parseJsonData(boost::any& parameter) {
-    if(parameter.type() != typeid(const std::string&)) {
+    if(parameter.type() != typeid(std::istream&)) {
         throw std::logic_error("PlumageWebApi::parseJsonData : parameter invalid.");
     }
-    const std::string& data = boost::any_cast<const std::string&>(parameter);
+    std::istream& data = boost::any_cast<std::istream&>(parameter);
 
     picojson::value* out = new picojson::value();
     JsonApi api;
@@ -171,6 +171,51 @@ void* PlumageWebApi::parseJsonData(boost::any& parameter) {
         throw std::logic_error(err.c_str());
     }
     return out;
+}
+
+void* PlumageWebApi::encodeToJsonData(boost::any& parameter) {
+    if(parameter.type() != typeid(std::tuple<const picojson::value&, std::ostream&>)) {
+        throw std::logic_error("PlumageWebApi::encodeToJsonData : parameter invalid.");
+    }
+    std::tuple<const picojson::value&, std::ostream&> p = boost::any_cast<std::tuple<const picojson::value&, std::ostream&>>(parameter);
+    const picojson::value& data = std::get<0>(p);
+    std::ostream& out = std::get<1>(p);
+
+    JsonApi api;
+    api.encode(data, out);
+    return nullptr;
+}
+
+void* PlumageWebApi::parseXmlData(boost::any& parameter) {
+    if(parameter.type() != typeid(std::istream&)) {
+        throw std::logic_error("PlumageWebApi::parseXmlData : parameter invalid.");
+    }
+    std::istream& data = boost::any_cast<std::istream&>(parameter);
+
+    XmlApi api;
+    namespace PTree = boost::property_tree;
+    PTree::ptree* pt = new PTree::ptree();
+    
+    try {
+        api.parse(data, *pt);
+    } catch (boost::property_tree::ptree_error& e) {
+        delete pt;
+        throw std::logic_error(e.what());
+    }
+    return pt;
+}
+
+void* PlumageWebApi::encodeToXmlData(boost::any& parameter) {
+    if(parameter.type() != typeid(std::tuple<const boost::property_tree::ptree&, std::string&>)) {
+        throw std::logic_error("PlumageWebApi::encodeToXmlData : parameter invalid.");
+    }
+    std::tuple<const boost::property_tree::ptree&, std::ostream&> p = boost::any_cast<std::tuple<const boost::property_tree::ptree&, std::ostream&>>(parameter);
+    const boost::property_tree::ptree& data = std::get<0>(p);
+    std::ostream& out = std::get<1>(p);
+
+    XmlApi api;
+    api.encode(data, out);
+    return nullptr;
 }
 
 bool PlumageWebApi::isCompatible(int interfaceVersion) const {
@@ -313,9 +358,18 @@ void HttpApi::post(CURL* curl, const std::string& url, const std::string& data, 
 
 }
 
-std::string JsonApi::parse(const std::string& in_data, picojson::value& out) const {
-    std::string err;
-    picojson::parse(out, in_data.cbegin(), in_data.cend(), &err);
-    return err;
+std::string JsonApi::parse(std::istream& in_data, picojson::value& out) const {
+    return picojson::parse(out, in_data);
+}
+void JsonApi::encode(const picojson::value& in_data, std::ostream& out) const {
+    out << in_data;
+}
+
+void XmlApi::parse(std::istream& in_data, boost::property_tree::ptree& pt) const {
+    boost::property_tree::read_xml(in_data, pt);
+}
+
+void XmlApi::encode(const boost::property_tree::ptree& data, std::ostream& out) const {
+    boost::property_tree::write_xml(out, data);
 }
 

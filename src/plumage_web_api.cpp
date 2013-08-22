@@ -28,13 +28,13 @@ void PlumageWebApi::init() {
     methodList_["encodeToXmlData"] = &PlumageWebApi::encodeToXmlData;
 }
 
-void* PlumageWebApi::createHandle(boost::any& parameter) {
+boost::any PlumageWebApi::createHandle(boost::any& parameter) {
     CURL* handle = curl_easy_init();
     curlHandles_.insert(handle);
     return handle;
 }
 
-void* PlumageWebApi::deleteHandle(boost::any& parameter) {
+boost::any PlumageWebApi::deleteHandle(boost::any& parameter) {
     if(parameter.type() != typeid(CURL*)) {
         throw std::logic_error("PlumageWebApi::deleteHandle : parameter invalid.");
     }
@@ -47,7 +47,7 @@ void* PlumageWebApi::deleteHandle(boost::any& parameter) {
     return nullptr;
 }
 
-void* PlumageWebApi::listUpFileOnFtp(boost::any& parameter) {
+boost::any PlumageWebApi::listUpFileOnFtp(boost::any& parameter) {
     if(parameter.type() != typeid(std::tuple<CURL*, const char*, bool, std::ostream*>)) {
         throw std::logic_error("PlumageWebApi::listUpFileOnFtp : parameter invalid.");
     }
@@ -66,7 +66,7 @@ void* PlumageWebApi::listUpFileOnFtp(boost::any& parameter) {
     return nullptr;
 }
 
-void* PlumageWebApi::downloadFileOnFtp_wait(boost::any& parameter) {
+boost::any PlumageWebApi::downloadFileOnFtp_wait(boost::any& parameter) {
     if(parameter.type() != typeid(std::tuple<CURL*, const char*, std::ostream*>)) {
         throw std::logic_error("PlumageWebApi::downloadFileOnFtp_wait : parameter invalid.");
     }
@@ -84,7 +84,7 @@ void* PlumageWebApi::downloadFileOnFtp_wait(boost::any& parameter) {
     return nullptr;
 }
 
-void* PlumageWebApi::createDirectoryOnFtp(boost::any& parameter) {
+boost::any PlumageWebApi::createDirectoryOnFtp(boost::any& parameter) {
     if(parameter.type() != typeid(std::tuple<CURL*, const char*, bool>)) {
         throw std::logic_error("PlumageWebApi::createDirectoryOnFtp : parameter invalid.");
     }
@@ -100,10 +100,9 @@ void* PlumageWebApi::createDirectoryOnFtp(boost::any& parameter) {
     FtpApi api;
     api.createDirectory(handle, url, recursive);
     return nullptr;
-    return nullptr;
 }
 
-void* PlumageWebApi::uploadFileOnFtp_wait(boost::any& parameter) {
+boost::any PlumageWebApi::uploadFileOnFtp_wait(boost::any& parameter) {
     if(parameter.type() != typeid(std::tuple<CURL*, const char*, const std::istream*>)) {
         throw std::logic_error("PlumageWebApi::uploadFileOnFtp_wait : parameter invalid.");
     }
@@ -120,7 +119,7 @@ void* PlumageWebApi::uploadFileOnFtp_wait(boost::any& parameter) {
     api.uploadFile(handle, url, *is);
     return nullptr;
 }
-void* PlumageWebApi::getOnHttp(boost::any& parameter) {
+boost::any PlumageWebApi::getOnHttp(boost::any& parameter) {
     if(parameter.type() != typeid(std::tuple<CURL*, const char*, std::ostream*>)) {
         throw std::logic_error("PlumageWebApi::getOnHttp : parameter invalid.");
     }
@@ -137,7 +136,7 @@ void* PlumageWebApi::getOnHttp(boost::any& parameter) {
     api.get(handle, url, *os);
     return nullptr;
 }
-void* PlumageWebApi::postOnHttp(boost::any& parameter) {
+boost::any PlumageWebApi::postOnHttp(boost::any& parameter) {
     if(parameter.type() != typeid(std::tuple<CURL*, const char*, std::ostream*>)) {
         throw std::logic_error("PlumageWebApi::postOnHttp : parameter invalid.");
     }
@@ -157,15 +156,15 @@ void* PlumageWebApi::postOnHttp(boost::any& parameter) {
 }
 
 
-void* PlumageWebApi::parseJsonData(boost::any& parameter) {
-    if(parameter.type() != typeid(std::istream&)) {
+boost::any PlumageWebApi::parseJsonData(boost::any& parameter) {
+    if(parameter.type() != typeid(std::istream*)) {
         throw std::logic_error("PlumageWebApi::parseJsonData : parameter invalid.");
     }
-    std::istream& data = boost::any_cast<std::istream&>(parameter);
+    std::istream* data = boost::any_cast<std::istream*>(parameter);
 
     picojson::value* out = new picojson::value();
     JsonApi api;
-    std::string err = api.parse(data, *out);
+    std::string err = api.parse(*data, *out);
     if(!err.empty()) {
         delete out;
         throw std::logic_error(err.c_str());
@@ -173,31 +172,31 @@ void* PlumageWebApi::parseJsonData(boost::any& parameter) {
     return out;
 }
 
-void* PlumageWebApi::encodeToJsonData(boost::any& parameter) {
-    if(parameter.type() != typeid(std::tuple<const picojson::value&, std::ostream&>)) {
+boost::any PlumageWebApi::encodeToJsonData(boost::any& parameter) {
+    if(parameter.type() != typeid(std::tuple<const picojson::value&, std::ostream*>)) {
         throw std::logic_error("PlumageWebApi::encodeToJsonData : parameter invalid.");
     }
-    std::tuple<const picojson::value&, std::ostream&> p = boost::any_cast<std::tuple<const picojson::value&, std::ostream&>>(parameter);
+    std::tuple<const picojson::value&, std::ostream*> p = boost::any_cast<std::tuple<const picojson::value&, std::ostream*>>(parameter);
     const picojson::value& data = std::get<0>(p);
-    std::ostream& out = std::get<1>(p);
+    std::ostream* out = std::get<1>(p);
 
     JsonApi api;
-    api.encode(data, out);
+    api.encode(data, *out);
     return nullptr;
 }
 
-void* PlumageWebApi::parseXmlData(boost::any& parameter) {
-    if(parameter.type() != typeid(std::istream&)) {
+boost::any PlumageWebApi::parseXmlData(boost::any& parameter) {
+    if(parameter.type() != typeid(std::istream*)) {
         throw std::logic_error("PlumageWebApi::parseXmlData : parameter invalid.");
     }
-    std::istream& data = boost::any_cast<std::istream&>(parameter);
+    std::istream* data = boost::any_cast<std::istream*>(parameter);
 
     XmlApi api;
     namespace PTree = boost::property_tree;
     PTree::ptree* pt = new PTree::ptree();
     
     try {
-        api.parse(data, *pt);
+        api.parse(*data, *pt);
     } catch (boost::property_tree::ptree_error& e) {
         delete pt;
         throw std::logic_error(e.what());
@@ -205,16 +204,16 @@ void* PlumageWebApi::parseXmlData(boost::any& parameter) {
     return pt;
 }
 
-void* PlumageWebApi::encodeToXmlData(boost::any& parameter) {
-    if(parameter.type() != typeid(std::tuple<const boost::property_tree::ptree&, std::string&>)) {
+boost::any PlumageWebApi::encodeToXmlData(boost::any& parameter) {
+    if(parameter.type() != typeid(std::tuple<const boost::property_tree::ptree&, std::ostream*>)) {
         throw std::logic_error("PlumageWebApi::encodeToXmlData : parameter invalid.");
     }
-    std::tuple<const boost::property_tree::ptree&, std::ostream&> p = boost::any_cast<std::tuple<const boost::property_tree::ptree&, std::ostream&>>(parameter);
+    std::tuple<const boost::property_tree::ptree&, std::ostream*> p = boost::any_cast<std::tuple<const boost::property_tree::ptree&, std::ostream*>>(parameter);
     const boost::property_tree::ptree& data = std::get<0>(p);
-    std::ostream& out = std::get<1>(p);
+    std::ostream* out = std::get<1>(p);
 
     XmlApi api;
-    api.encode(data, out);
+    api.encode(data, *out);
     return nullptr;
 }
 
@@ -232,7 +231,7 @@ bool PlumageWebApi::isCallable(const std::string& methodName) const {
     return true;
 }
 
-void* PlumageWebApi::doCall(std::string methodName, boost::any& parameter) throw (std::exception) {
+boost::any PlumageWebApi::doCall(std::string methodName, boost::any& parameter) throw (std::exception) {
     Method method = methodList_.at(methodName);
     return (this->*method)(parameter);
 }

@@ -18,7 +18,7 @@ class PlumageWebApi : public plumage::PluginEntity {
     const int INTERFACE_VERSION = 1;
     const int PLUGIN_VERSION = 1;
 
-    typedef void* (PlumageWebApi::*Method)(boost::any&);
+    typedef boost::any (PlumageWebApi::*Method)(boost::any&);
 
     std::set<CURL*> curlHandles_;
     std::map<std::string, Method> methodList_;
@@ -26,29 +26,29 @@ class PlumageWebApi : public plumage::PluginEntity {
     void init();
 
     // 
-    void* createHandle(boost::any& parameter);
-    void* deleteHandle(boost::any& parameter);
+    boost::any createHandle(boost::any& parameter);
+    boost::any deleteHandle(boost::any& parameter);
 
     // for FTP API
-    void* listUpFileOnFtp(boost::any& parameter);
-    void* downloadFileOnFtp_wait(boost::any& parameter);
-    void* createDirectoryOnFtp(boost::any& parameter);
-    void* uploadFileOnFtp_wait(boost::any& parameter);
+    boost::any listUpFileOnFtp(boost::any& parameter);
+    boost::any downloadFileOnFtp_wait(boost::any& parameter);
+    boost::any createDirectoryOnFtp(boost::any& parameter);
+    boost::any uploadFileOnFtp_wait(boost::any& parameter);
 
     // for HTTP API
-    void* getOnHttp(boost::any& parameter);
-    void* postOnHttp(boost::any& parameter);
+    boost::any getOnHttp(boost::any& parameter);
+    boost::any postOnHttp(boost::any& parameter);
 
     // for auth
     //void* setBasicAuth(boost::any& parameter);
 
     // for json
-    void* parseJsonData(boost::any& parameter);
-    void* encodeToJsonData(boost::any& parameter);
+    boost::any parseJsonData(boost::any& parameter);
+    boost::any encodeToJsonData(boost::any& parameter);
 
     // for XML
-    void* parseXmlData(boost::any& parameter);
-    void* encodeToXmlData(boost::any& parameter);
+    boost::any parseXmlData(boost::any& parameter);
+    boost::any encodeToXmlData(boost::any& parameter);
 
 public:
     PlumageWebApi() : plumage::PluginEntity("PlumageWebApi") {
@@ -85,7 +85,7 @@ protected:
         return true;
     }
 
-    virtual void* doCall(std::string methodName, boost::any& paramter) throw (std::exception);
+    virtual boost::any doCall(std::string methodName, boost::any& paramter) throw (std::exception);
 
 };
 

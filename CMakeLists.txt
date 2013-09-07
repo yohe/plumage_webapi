@@ -2,14 +2,15 @@ cmake_minimum_required(VERSION 2.6)
 
 PROJECT(plumage_webapi)
 
-IF(UNIX)
+message(${CMAKE_SYSTEM})
+IF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     include_directories(/usr/include /usr/local/include ./)
     link_directories(/usr/lib /usr/local/lib)
-ENDIF(UNIX)
-IF(APPLE)
+ENDIF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+IF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     include_directories(/opt/local/include /usr/include /usr/local/include ./)
     link_directories(/opt/local/lib /usr/lib /usr/local/lib)
-ENDIF(APPLE)
+ENDIF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
 add_library(plumage_webapi SHARED
     src/plumage_web_api.cpp
@@ -30,3 +31,4 @@ set_target_properties(plumage_webapi_st PROPERTIES ARCHIVE_OUTPUT_DIRECTORY "lib
 
 INSTALL(TARGETS plumage_webapi_st LIBRARY ARCHIVE DESTINATION lib)
 INSTALL(TARGETS plumage_webapi LIBRARY DESTINATION lib)
+

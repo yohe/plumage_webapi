@@ -2,16 +2,17 @@ cmake_minimum_required(VERSION 2.6)
 
 PROJECT(plumage)
 
-IF(UNIX)
+message(${CMAKE_SYSTEM})
+IF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     include_directories(/usr/include  /usr/local/include ../picojson)
     link_directories(/usr/lib /usr/local/lib)
     add_definitions(-DUNIX)
-ENDIF(UNIX)
-IF(APPLE)
+ENDIF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+IF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     include_directories(/opt/local/include /usr/include /usr/local/include ../picojson)
     link_directories(/opt/local/lib /usr/lib /usr/local/lib)
     add_definitions(-DMAC_OSX)
-ENDIF(APPLE)
+ENDIF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
 set(CMAKE_CXX_FLAGS "-g")
 

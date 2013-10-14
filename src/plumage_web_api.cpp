@@ -44,6 +44,7 @@ void PlumageWebApi::init() {
     methodList_["getAuthorizeUrlOnOAuth"] = &PlumageWebApi::getAuthorizeUrlOnOAuth;
     methodList_["getAccessTokenOnOAuth"] = &PlumageWebApi::getAccessTokenOnOAuth;
     methodList_["postOnOAuth"] = &PlumageWebApi::postOnOAuth;
+    methodList_["getOnOAuth"] = &PlumageWebApi::getOnOAuth;
 }
 
 boost::any PlumageWebApi::createHandle(boost::any& parameter) {
@@ -368,19 +369,40 @@ boost::any PlumageWebApi::getAccessTokenOnOAuth(boost::any& parameter) {
     OAuthApi api;
     return api.getAccessToken(handle, oauth, accessUrl, oauth_verify, 1);
 }
-boost::any PlumageWebApi::postOnOAuth(boost::any& parameter) {
-    if(parameter.type() != typeid(std::tuple<CURL*, void*, const char*, const char*>)) {
-        throw std::logic_error("PlumageWebApi::getAuthorizeUrlOnOAuth : parameter invalid.");
+boost::any PlumageWebApi::getOnOAuth(boost::any& parameter) {
+    if(parameter.type() != typeid(std::tuple<CURL*, void*, const char*, const char*, std::ostream*>)) {
+        throw std::logic_error("PlumageWebApi::getOnOAuth : parameter invalid.");
     }
-    std::tuple<CURL*, void*, const char*, const char*> p = boost::any_cast<std::tuple<CURL*, void*, const char*, const char*>>(parameter);
+    std::tuple<CURL*, void*, const char*, const char*, std::ostream*> p =
+        boost::any_cast<std::tuple<CURL*, void*, const char*, const char*, std::ostream*>>(parameter);
+
+    CURL* handle = std::get<0>(p);
+    void* tmp = std::get<1>(p);
+    OAuthApi::OAuthHandler* oauth = (OAuthApi::OAuthHandler*)(tmp);
+    std::string getUrl = std::get<2>(p);
+    std::string query = std::get<3>(p);
+    std::ostream* os = std::get<4>(p);
+
+    OAuthApi api;
+    api.get(handle, oauth, getUrl, query, 1, *os);
+    return nullptr;
+}
+boost::any PlumageWebApi::postOnOAuth(boost::any& parameter) {
+    if(parameter.type() != typeid(std::tuple<CURL*, void*, const char*, const char*, std::ostream*>)) {
+        throw std::logic_error("PlumageWebApi::postOnOAuth : parameter invalid.");
+    }
+    std::tuple<CURL*, void*, const char*, const char*, std::ostream*> p =
+        boost::any_cast<std::tuple<CURL*, void*, const char*, const char*, std::ostream*>>(parameter);
+
     CURL* handle = std::get<0>(p);
     void* tmp = std::get<1>(p);
     OAuthApi::OAuthHandler* oauth = (OAuthApi::OAuthHandler*)(tmp);
     std::string postUrl = std::get<2>(p);
     std::string data = std::get<3>(p);
+    std::ostream* os = std::get<4>(p);
 
     OAuthApi api;
-    api.post(handle, oauth, postUrl, data, 1);
+    api.post(handle, oauth, postUrl, data, 1, *os);
     return nullptr;
 }
 
@@ -499,7 +521,7 @@ void HttpApi::get(CURL* curl, const std::string& url, std::ostream& os) const {
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &writeOutputStream);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &os);
-    curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+    curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
 
     CURLcode res;
     res = curl_easy_perform(curl);
@@ -516,6 +538,7 @@ void HttpApi::post(CURL* curl, const std::string& url, const std::string& data, 
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &os);
     curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
 
+    curl_easy_setopt(curl, CURLOPT_HTTPGET, 1);
     CURLcode res;
     res = curl_easy_perform(curl);
 #ifdef DEBUG
@@ -542,7 +565,9 @@ std::string HttpApi::encodeToUrlEncode(const std::string data) const {
 }
 
 std::map<std::string, std::string> HttpApi::parseQueryData(const std::string& data) const {
+#ifdef DEBUG
     std::cout << data << std::endl;
+#endif
     std::map<std::string, std::string> keyValue;
     size_t pos = 0;
     while(pos != std::string::npos) {
@@ -553,12 +578,17 @@ std::map<std::string, std::string> HttpApi::parseQueryData(const std::string& da
             size_t andPos = data.find('&', pos);
             if(andPos != std::string::npos) {
                 std::string value = data.substr(eqPos+1, (andPos-1-eqPos));
+#ifdef DEBUG
                 std::cout << key << " : " << value << std::endl;
+#endif
                 keyValue.insert(std::make_pair(key, value));
                 pos = andPos;
             } else {
                 std::string value = data.substr(eqPos+1, (andPos - eqPos));
+#ifdef DEBUG
                 std::cout << key << " : " << value << std::endl;
+#endif
+                keyValue.insert(std::make_pair(key, value));
                 keyValue.insert(std::make_pair(key, value));
                 pos = std::string::npos;
             }
@@ -737,9 +767,19 @@ std::map<std::string, std::string> OAuthApi::getRequestToken(CURL* curl, OAuthHa
 std::string OAuthApi::getOAuthSignature(std::string url, std::string query, std::string secret, int type, std::string reqType) const {
     std::string signatureData;
     HttpApi api;
+
+    std::map<std::string, std::string> tokenList = tokenizeQuery(query);
+    std::string sortedQuery = serializeQuery(std::move(tokenList));
+
     signatureData = reqType + "&";
     signatureData += api.encodeToUrlEncode(url) + '&';
-    signatureData += api.encodeToUrlEncode(query);
+    signatureData += api.encodeToUrlEncode(sortedQuery);
+
+#ifdef DEBUG
+    std::cout << "------------------------------------------" << std::endl;
+    std::cout << signatureData << std::endl;
+    std::cout << "------------------------------------------" << std::endl;
+#endif
 
     std::string signature = getHMAC(type, secret, signatureData);
 
@@ -843,12 +883,16 @@ std::map<std::string, std::string> OAuthApi::getAccessToken(CURL* curl, OAuthHan
     }
 
 
+#ifdef DEBUG
     std::cout << oss.str() << std::endl;
+#endif
 
     oauth->accessToken_ = keyValue.at( "oauth_token" );
     oauth->accessTokenSecret_ = keyValue.at( "oauth_token_secret" );
 
+#ifdef DEBUG
     std::cout << oauth->accessToken_ << " : " << oauth->accessTokenSecret_ << std::endl;
+#endif
 
     return keyValue;
 }
@@ -861,7 +905,66 @@ std::string OAuthApi::getAuthorizeUrl(CURL* curl, OAuthHandler* oauth, std::stri
     return authUrl;
 }
 
-void OAuthApi::post(CURL* curl, OAuthHandler* oauth, std::string postUrl, std::string data, int type) const {
+void OAuthApi::get(CURL* curl, OAuthHandler* oauth, std::string getUrl, std::string data, int type, std::ostream& os) const {
+    HttpApi api;
+    std::stringstream ss;
+    namespace uuids = boost::uuids;
+    const uuids::uuid id = uuids::random_generator()();
+    ss << "oauth_consumer_key=" << oauth->consumerKey_ << "&"
+       << "oauth_nonce=" << id << "&"
+       << "oauth_signature_method=";
+
+    if(type == HMAC_MD5) {
+        ss << "HMAC-MD5" << "&";
+    } else if(type == HMAC_SHA1) {
+        ss << "HMAC-SHA1" << "&";
+    } else if(type == HMAC_SHA2) {
+        ss << "HMAC-SHA2" << "&";
+    } else {
+        throw std::logic_error("EncryptType error.");
+    }
+
+    std::stringstream timestamp;
+    //timestamp << "1381688499";
+    timestamp << std::time(0);
+    ss << "oauth_timestamp=" << timestamp.str() << "&"
+       << "oauth_token=" << oauth->accessToken_ << "&"
+       << "oauth_version=" << "1.0" << "&"
+       << data;
+
+    std::string signatureKey = oauth->consumerSecret_ + '&' + oauth->accessTokenSecret_;
+    std::string signature = getOAuthSignature(getUrl, ss.str(), signatureKey, type, "GET");
+    ss << "&oauth_signature=" + api.encodeToUrlEncode(signature);
+    std::string url = getUrl + "?" + data;
+
+//#ifdef DEBUG
+    std::cout << "POST URL = " << getUrl << std::endl;
+    std::cout << "FULL URL = " << url << std::endl;
+    std::cout << "query = " << ss.str() << std::endl;
+//#endif
+
+    std::stringstream tmp;
+    tmp << id;
+    struct curl_slist *slist=nullptr;
+    std::stringstream authStr;
+    authStr <<  "Authorization: OAuth";
+    authStr << " oauth_consumer_key=\"" << oauth->consumerKey_.c_str() << "\"";
+    authStr << ", oauth_nonce=\"" << tmp.str() << "\"";
+    authStr << ", oauth_signature=\"" << api.encodeToUrlEncode(signature) << "\"";
+    authStr << ", oauth_signature_method=\"HMAC-SHA1\"";
+    authStr << ", oauth_timestamp=\"" << timestamp.str() << "\"";
+    authStr << ", oauth_token=\"" << oauth->accessToken_ << "\"";
+    authStr << ", oauth_version=\"1.0\"";
+    slist = curl_slist_append(slist, authStr.str().c_str());
+
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, slist);
+//#ifdef DEBUG
+    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
+//#endif
+    api.post(curl, url, ss.str(), os);
+}
+
+void OAuthApi::post(CURL* curl, OAuthHandler* oauth, std::string postUrl, std::string data, int type, std::ostream& os) const {
     HttpApi api;
     std::stringstream ss;
     namespace uuids = boost::uuids;
@@ -890,14 +993,65 @@ void OAuthApi::post(CURL* curl, OAuthHandler* oauth, std::string postUrl, std::s
     ss << "&oauth_signature=" + api.encodeToUrlEncode(signature);
     std::string url = postUrl + "?" + ss.str();
 
-    std::cout << "URL = " << url << std::endl;
-    std::cout << "URL = " << postUrl << std::endl;
+#ifdef DEBUG
+    std::cout << "POST URL = " << postUrl << std::endl;
+    std::cout << "FULL URL = " << url << std::endl;
     std::cout << "query = " << ss.str() << std::endl;
 
-    std::ostringstream oss;
-    std::ostringstream os;
+    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
+#endif
     api.post(curl, postUrl, ss.str(), os);
-
-    std::cout << os.str() << std::endl;
 }
 
+std::map<std::string, std::string> OAuthApi::tokenizeQuery(std::string query) const {
+    std::map<std::string, std::string> ret;
+    size_t cur = 0;
+    size_t end = query.size();
+    while( cur <= end) {
+        size_t andPos = query.find('&', cur);
+        if( andPos == std::string::npos) {
+            std::string str = query.substr(cur);
+            if(!str.empty()) {
+                size_t eqPos = str.find('=');
+                if(eqPos == std::string::npos || eqPos == str.size()) {
+                    throw std::runtime_error("Query is illegal format");
+                }
+                std::string key = str.substr(0, eqPos);
+                std::string val = str.substr(eqPos+1);
+                ret.insert(std::make_pair(key, val));
+                cur = andPos;
+            } else {
+                cur++;
+            }
+        } else {
+            std::string str = query.substr(cur, (andPos-cur));
+            size_t eqPos = str.find('=');
+            if(eqPos == std::string::npos || eqPos == str.size()) {
+                throw std::runtime_error("Query is illegal format");
+            }
+            std::string key = str.substr(0, eqPos);
+            std::string val = str.substr(eqPos+1);
+            ret.insert(std::make_pair(key, val));
+            cur = andPos+1;
+        }
+    }
+//#ifdef DEBUG
+    for(std::pair<std::string, std::string> tmp : ret) {
+        std::cout << tmp.first << ":" << tmp.second << std::endl;
+    }
+//#endif
+    return std::move(ret);
+}
+
+std::string OAuthApi::serializeQuery(std::map<std::string, std::string> queries) const {
+    std::string ret;
+    bool first = true;
+    for(std::pair<std::string, std::string> tmp : queries) {
+        if(!first) {
+            ret += "&";
+        }
+        ret += tmp.first + "=" + tmp.second;
+        first = false;
+    }
+    return std::move(ret);
+}

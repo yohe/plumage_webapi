@@ -30,11 +30,14 @@ public:
     std::map<std::string, std::string> getRequestToken(CURL* curl, OAuthHandler* oauth, std::string url, int type) const;
     std::map<std::string, std::string> getAccessToken(CURL* curl, OAuthHandler* oauth, std::string url, std::string oauth_verify, int type) const;
     std::string getAuthorizeUrl(CURL* curl, OAuthHandler* oauth, std::string authUrl, std::string requestUrl, int type) const;
-    void post(CURL* curl, OAuthHandler* oauth, std::string url, std::string data, int type) const;
+    void post(CURL* curl, OAuthHandler* oauth, std::string url, std::string data, int type, std::ostream& os) const;
+    void get(CURL* curl, OAuthHandler* oauth, std::string url, std::string data, int type, std::ostream& os) const;
     OAuthHandler* createOAuthHandle();
 private:
     std::string getOAuthSignature(std::string url, std::string query, std::string consumerSecret, int type, std::string requestType="GET") const;
     std::string getHMAC(int algorithm, std::string key, std::string data) const;
+    std::map<std::string, std::string> tokenizeQuery(std::string query) const;
+    std::string serializeQuery(std::map<std::string, std::string> queries) const;
 };
 
 

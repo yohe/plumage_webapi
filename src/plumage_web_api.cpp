@@ -772,11 +772,11 @@ std::string OAuthApi::getOAuthSignature(std::string url, std::string query, std:
     signatureData += api.encodeToUrlEncode(url) + '&';
     signatureData += api.encodeToUrlEncode(sortedQuery);
 
-//#ifdef DEBUG
+#ifdef DEBUG
     std::cout << "------------------------------------------" << std::endl;
     std::cout << signatureData << std::endl;
     std::cout << "------------------------------------------" << std::endl;
-//#endif
+#endif
 
     std::string signature = getHMAC(type, secret, signatureData);
 

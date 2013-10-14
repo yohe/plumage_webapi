@@ -34,10 +34,15 @@ public:
     void get(CURL* curl, OAuthHandler* oauth, std::string url, std::string data, int type, std::ostream& os) const;
     OAuthHandler* createOAuthHandle();
 private:
+    void setOAuthHeader(CURL* curl, OAuthHandler* oauth,
+                        std::string nonce, std::string encodedSignaure, int type, std::string timestamp, std::string version) const;
+
     std::string getOAuthSignature(std::string url, std::string query, std::string consumerSecret, int type, std::string requestType="GET") const;
     std::string getHMAC(int algorithm, std::string key, std::string data) const;
     std::map<std::string, std::string> tokenizeQuery(std::string query) const;
     std::string serializeQuery(std::map<std::string, std::string> queries) const;
+
+    std::string getEncryptTypeString(int type) const;
 };
 
 

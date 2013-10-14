@@ -82,16 +82,16 @@ int main(int argc, char const* argv[])
                                           "access-secret"));
         ret = pif->call("createOAuthHandle", param9);
         void* oauthHandle = boost::any_cast<void*>(ret);
-        //ss.str("");
-        //std::string data = "status=tweet test from web api.";
-        //std::string postUrl = "https://api.twitter.com/1.1/statuses/update.json";
-        //boost::any param10(std::make_tuple(handle,
-        //                                   oauthHandle,
-        //                                   postUrl.c_str(),
-        //                                   data.c_str(),
-        //                                   (std::ostream*)&ss));
-        //pif->call("postOnOAuth", param10);
-        //std::cout << ss.str() << std::endl;
+        ss.str("");
+        std::string data = "status=test";
+        std::string postUrl = "https://api.twitter.com/1.1/statuses/update.json";
+        boost::any param10(std::make_tuple(handle,
+                                           oauthHandle,
+                                           postUrl.c_str(),
+                                           data.c_str(),
+                                           (std::ostream*)&ss));
+        pif->call("postOnOAuth", param10);
+        std::cout << ss.str() << std::endl;
         ss.str("");
         boost::any param11(std::make_tuple(handle,
                                            oauthHandle,
@@ -99,6 +99,7 @@ int main(int argc, char const* argv[])
                                            "lang=ja&q=vim&local=ja&count=30",
                                            (std::ostream*)&ss));
         pif->call("getOnOAuth", param11);
+        std::cout << ss.str() << std::endl;
         boost::any searchResult((std::istream*)&ss);
         ret = pif->call("parseJsonData", searchResult);
         v = boost::any_cast<picojson::value*>(ret);

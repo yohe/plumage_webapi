@@ -170,7 +170,8 @@ boost::any PlumageWebApi::postOnHttp(boost::any& parameter) {
     }
 
     HttpApi api;
-    api.post(handle, url, data, *os);
+    api.setPostData(handle, data);
+    api.post(handle, url, *os);
     return nullptr;
 }
 
@@ -523,6 +524,7 @@ void HttpApi::get(CURL* curl, const std::string& url, std::ostream& os) const {
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &os);
     curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
 
+    curl_easy_setopt(curl, CURLOPT_HTTPGET, 1);
     CURLcode res;
     res = curl_easy_perform(curl);
 #ifdef DEBUG
@@ -531,20 +533,22 @@ void HttpApi::get(CURL* curl, const std::string& url, std::ostream& os) const {
 
 }
 
-void HttpApi::post(CURL* curl, const std::string& url, const std::string& data, std::ostream& os) const {
+void HttpApi::post(CURL* curl, const std::string& url, std::ostream& os) const {
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str());
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &writeOutputStream);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &os);
     curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
 
-    curl_easy_setopt(curl, CURLOPT_HTTPGET, 1);
     CURLcode res;
     res = curl_easy_perform(curl);
 #ifdef DEBUG
     std::cout << "Response : " << res << std::endl;
 #endif
 
+}
+
+void HttpApi::setPostData(CURL* curl, const std::string& data) const {
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str());
 }
 
 std::string HttpApi::encodeToUrlEncode(const std::string data) const {
@@ -726,15 +730,8 @@ std::map<std::string, std::string> OAuthApi::getRequestToken(CURL* curl, OAuthHa
        << "oauth_nonce=" << id << "&"
        << "oauth_signature_method=";
 
-    if(type == HMAC_MD5) {
-        ss << "HMAC-MD5" << "&";
-    } else if(type == HMAC_SHA1) {
-        ss << "HMAC-SHA1" << "&";
-    } else if(type == HMAC_SHA2) {
-        ss << "HMAC-SHA2" << "&";
-    } else {
-        throw std::logic_error("EncryptType error.");
-    }
+    std::string cryptoType = getEncryptTypeString(type);
+    ss << cryptoType << "&";
 
     ss << "oauth_timestamp=" << std::time(0) << "&"
        << "oauth_version=" << "1.0";
@@ -775,11 +772,11 @@ std::string OAuthApi::getOAuthSignature(std::string url, std::string query, std:
     signatureData += api.encodeToUrlEncode(url) + '&';
     signatureData += api.encodeToUrlEncode(sortedQuery);
 
-#ifdef DEBUG
+//#ifdef DEBUG
     std::cout << "------------------------------------------" << std::endl;
     std::cout << signatureData << std::endl;
     std::cout << "------------------------------------------" << std::endl;
-#endif
+//#endif
 
     std::string signature = getHMAC(type, secret, signatureData);
 
@@ -848,15 +845,8 @@ std::map<std::string, std::string> OAuthApi::getAccessToken(CURL* curl, OAuthHan
        << "oauth_nonce=" << id << "&"
        << "oauth_signature_method=";
 
-    if(type == HMAC_MD5) {
-        ss << "HMAC-MD5" << "&";
-    } else if(type == HMAC_SHA1) {
-        ss << "HMAC-SHA1" << "&";
-    } else if(type == HMAC_SHA2) {
-        ss << "HMAC-SHA2" << "&";
-    } else {
-        throw std::logic_error("EncryptType error.");
-    }
+    std::string cryptoType = getEncryptTypeString(type);
+    ss << cryptoType << "&";
 
     ss << "oauth_timestamp=" << std::time(0) << "&"
        << "oauth_token=" << oauth->requestToken_ << "&"
@@ -914,18 +904,10 @@ void OAuthApi::get(CURL* curl, OAuthHandler* oauth, std::string getUrl, std::str
        << "oauth_nonce=" << id << "&"
        << "oauth_signature_method=";
 
-    if(type == HMAC_MD5) {
-        ss << "HMAC-MD5" << "&";
-    } else if(type == HMAC_SHA1) {
-        ss << "HMAC-SHA1" << "&";
-    } else if(type == HMAC_SHA2) {
-        ss << "HMAC-SHA2" << "&";
-    } else {
-        throw std::logic_error("EncryptType error.");
-    }
+    std::string cryptoType = getEncryptTypeString(type);
+    ss << cryptoType << "&";
 
     std::stringstream timestamp;
-    //timestamp << "1381688499";
     timestamp << std::time(0);
     ss << "oauth_timestamp=" << timestamp.str() << "&"
        << "oauth_token=" << oauth->accessToken_ << "&"
@@ -937,31 +919,21 @@ void OAuthApi::get(CURL* curl, OAuthHandler* oauth, std::string getUrl, std::str
     ss << "&oauth_signature=" + api.encodeToUrlEncode(signature);
     std::string url = getUrl + "?" + data;
 
-//#ifdef DEBUG
+#ifdef DEBUG
     std::cout << "POST URL = " << getUrl << std::endl;
     std::cout << "FULL URL = " << url << std::endl;
     std::cout << "query = " << ss.str() << std::endl;
-//#endif
+#endif
 
     std::stringstream tmp;
     tmp << id;
-    struct curl_slist *slist=nullptr;
-    std::stringstream authStr;
-    authStr <<  "Authorization: OAuth";
-    authStr << " oauth_consumer_key=\"" << oauth->consumerKey_.c_str() << "\"";
-    authStr << ", oauth_nonce=\"" << tmp.str() << "\"";
-    authStr << ", oauth_signature=\"" << api.encodeToUrlEncode(signature) << "\"";
-    authStr << ", oauth_signature_method=\"HMAC-SHA1\"";
-    authStr << ", oauth_timestamp=\"" << timestamp.str() << "\"";
-    authStr << ", oauth_token=\"" << oauth->accessToken_ << "\"";
-    authStr << ", oauth_version=\"1.0\"";
-    slist = curl_slist_append(slist, authStr.str().c_str());
+    setOAuthHeader(curl, oauth, tmp.str(), api.encodeToUrlEncode(signature), type, timestamp.str(), "1.0");
 
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, slist);
-//#ifdef DEBUG
+#ifdef DEBUG
     curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
-//#endif
-    api.post(curl, url, ss.str(), os);
+#endif
+    api.setPostData(curl, ss.str());
+    api.get(curl, url, os);
 }
 
 void OAuthApi::post(CURL* curl, OAuthHandler* oauth, std::string postUrl, std::string data, int type, std::ostream& os) const {
@@ -973,34 +945,37 @@ void OAuthApi::post(CURL* curl, OAuthHandler* oauth, std::string postUrl, std::s
        << "oauth_nonce=" << id << "&"
        << "oauth_signature_method=";
 
-    if(type == HMAC_MD5) {
-        ss << "HMAC-MD5" << "&";
-    } else if(type == HMAC_SHA1) {
-        ss << "HMAC-SHA1" << "&";
-    } else if(type == HMAC_SHA2) {
-        ss << "HMAC-SHA2" << "&";
-    } else {
-        throw std::logic_error("EncryptType error.");
-    }
+    std::string cryptoType = getEncryptTypeString(type);
+    ss << cryptoType << "&";
 
-    ss << "oauth_timestamp=" << std::time(0) << "&"
+    std::stringstream timestamp;
+    timestamp << std::time(0);
+    ss << "oauth_timestamp=" << timestamp.str() << "&"
        << "oauth_token=" << oauth->accessToken_ << "&"
        << "oauth_version=" << "1.0" << "&"
        << data;
 
     std::string signatureKey = oauth->consumerSecret_ + '&' + oauth->accessTokenSecret_;
     std::string signature = getOAuthSignature(postUrl, ss.str(), signatureKey, type, "POST");
-    ss << "&oauth_signature=" + api.encodeToUrlEncode(signature);
-    std::string url = postUrl + "?" + ss.str();
 
 #ifdef DEBUG
     std::cout << "POST URL = " << postUrl << std::endl;
+    ss << "&oauth_signature=" + api.encodeToUrlEncode(signature);
+    std::string url = postUrl + "?" + ss.str();
     std::cout << "FULL URL = " << url << std::endl;
     std::cout << "query = " << ss.str() << std::endl;
+#endif
 
+    std::stringstream tmp;
+    tmp << id;
+    setOAuthHeader(curl, oauth, tmp.str(), api.encodeToUrlEncode(signature), type, timestamp.str(), "1.0");
+
+#ifdef DEBUG
     curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
 #endif
-    api.post(curl, postUrl, ss.str(), os);
+
+    api.setPostData(curl, data.c_str());
+    api.post(curl, postUrl, os);
 }
 
 std::map<std::string, std::string> OAuthApi::tokenizeQuery(std::string query) const {
@@ -1035,11 +1010,11 @@ std::map<std::string, std::string> OAuthApi::tokenizeQuery(std::string query) co
             cur = andPos+1;
         }
     }
-//#ifdef DEBUG
+#ifdef DEBUG
     for(std::pair<std::string, std::string> tmp : ret) {
         std::cout << tmp.first << ":" << tmp.second << std::endl;
     }
-//#endif
+#endif
     return std::move(ret);
 }
 
@@ -1054,4 +1029,36 @@ std::string OAuthApi::serializeQuery(std::map<std::string, std::string> queries)
         first = false;
     }
     return std::move(ret);
+}
+
+void OAuthApi::setOAuthHeader(CURL* curl, OAuthHandler* oauth,
+                              std::string nonce, std::string encodedSignaure, int type,
+                              std::string timestamp, std::string version) const {
+
+    struct curl_slist *slist=nullptr;
+    std::stringstream authStr;
+
+    authStr <<  "Authorization: OAuth";
+    authStr << " oauth_consumer_key=\"" << oauth->consumerKey_.c_str() << "\"";
+    authStr << ", oauth_nonce=\"" << nonce << "\"";
+    authStr << ", oauth_signature=\"" << encodedSignaure << "\"";
+    authStr << ", oauth_signature_method=\"" << getEncryptTypeString(type) << "\"";
+    authStr << ", oauth_timestamp=\"" << timestamp << "\"";
+    authStr << ", oauth_token=\"" << oauth->accessToken_ << "\"";
+    authStr << ", oauth_version=\"1.0\"";
+    slist = curl_slist_append(slist, authStr.str().c_str());
+
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, slist);
+}
+
+std::string OAuthApi::getEncryptTypeString(int type) const {
+    if(type == HMAC_MD5) {
+        return "HMAC-MD5";
+    } else if(type == HMAC_SHA1) {
+        return "HMAC-SHA1";
+    } else if(type == HMAC_SHA2) {
+        return "HMAC-SHA2";
+    } else {
+        throw std::logic_error("EncryptType error.");
+    }
 }

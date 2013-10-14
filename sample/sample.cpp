@@ -26,6 +26,7 @@ int main(int argc, char const* argv[])
 
     plumage::PluginRepository* repos = manager.getPluginRepository("PlumageWebApi", 1, false);
     if(repos == nullptr) {
+        std::cout << "repository not found" << std::endl;
         return 0;
     }
     try {
@@ -75,19 +76,40 @@ int main(int argc, char const* argv[])
         std::cout << "latitude : " << pt->get<std::string>("ekidata.station.lat") << std::endl;
         delete pt;
 
-        boost::any param9(std::make_tuple("Consumer-Key",
-                                          "Consumer-Secret",
-                                          "AccessToken-Key",
-                                          "AccessToken-Secret"));
+        boost::any param9(std::make_tuple("consumer-key",
+                                          "consumer-secret",
+                                          "access-key",
+                                          "access-secret"));
         ret = pif->call("createOAuthHandle", param9);
         void* oauthHandle = boost::any_cast<void*>(ret);
-        std::string data = "status=tweet test from web api.";
-        std::string postUrl = "http://api.twitter.com/1.1/statuses/update.json";
-        boost::any param10(std::make_tuple(handle,
+        //ss.str("");
+        //std::string data = "status=tweet test from web api.";
+        //std::string postUrl = "https://api.twitter.com/1.1/statuses/update.json";
+        //boost::any param10(std::make_tuple(handle,
+        //                                   oauthHandle,
+        //                                   postUrl.c_str(),
+        //                                   data.c_str(),
+        //                                   (std::ostream*)&ss));
+        //pif->call("postOnOAuth", param10);
+        //std::cout << ss.str() << std::endl;
+        ss.str("");
+        boost::any param11(std::make_tuple(handle,
                                            oauthHandle,
-                                           postUrl.c_str(),
-                                           data.c_str()));
-        pif->call("postOnOAuth", param10);
+                                           "https://api.twitter.com/1.1/search/tweets.json",
+                                           "lang=ja&q=vim&local=ja&count=30",
+                                           (std::ostream*)&ss));
+        pif->call("getOnOAuth", param11);
+        boost::any searchResult((std::istream*)&ss);
+        ret = pif->call("parseJsonData", searchResult);
+        v = boost::any_cast<picojson::value*>(ret);
+        picojson::object obj = v->get<picojson::object>();
+        picojson::array statuses = obj["statuses"].get<picojson::array>();
+        for (it = statuses.begin(); it != statuses.end(); it++) {
+            picojson::object statusesObj = it->get<picojson::object>();
+            picojson::object userObj = statusesObj["user"].get<picojson::object>();
+            std::cout << userObj["name"].to_str() << " : " << statusesObj["text"].to_str() << std::endl;
+        }
+        delete v;
         boost::any end(oauthHandle);
         pif->call("deleteOAuthHandle", end);
     } catch (std::exception& e) {

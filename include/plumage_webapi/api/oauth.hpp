@@ -29,6 +29,8 @@ public:
 
     std::map<std::string, std::string> getRequestToken(CURL* curl, OAuthHandler* oauth, std::string url, int type) const;
     std::map<std::string, std::string> getAccessToken(CURL* curl, OAuthHandler* oauth, std::string url, std::string oauth_verify, int type) const;
+    std::map<std::string, std::string> getAccessTokenByXAuth(CURL* curl, OAuthHandler* oauth,
+                                                               std::string url, int type, std::string user, std::string pass) const;
     std::string getAuthorizeUrl(CURL* curl, OAuthHandler* oauth, std::string authUrl, std::string requestUrl, int type) const;
     void post(CURL* curl, OAuthHandler* oauth, std::string url, std::string data, int type, std::ostream& os) const;
     void get(CURL* curl, OAuthHandler* oauth, std::string url, std::string data, int type, std::ostream& os) const;

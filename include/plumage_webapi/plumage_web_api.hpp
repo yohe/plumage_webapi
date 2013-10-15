@@ -59,6 +59,7 @@ class PlumageWebApi : public plumage::PluginEntity {
     boost::any getAuthorizeUrlOnOAuth(boost::any& parameter);
     boost::any getRequestTokenOnOAuth(boost::any& parameter);
     boost::any getAccessTokenOnOAuth(boost::any& parameter);
+    //boost::any getAccessTokenByXAuthOnOAuth(boost::any& parameter);
     boost::any setOAuthParameter(boost::any& parameter);
     boost::any getOnOAuth(boost::any& parameter);
     boost::any postOnOAuth(boost::any& parameter);

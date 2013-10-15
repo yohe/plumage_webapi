@@ -82,6 +82,21 @@ int main(int argc, char const* argv[])
                                           "access-secret"));
         ret = pif->call("createOAuthHandle", param9);
         void* oauthHandle = boost::any_cast<void*>(ret);
+        boost::any param4(std::make_tuple(handle,
+                                          oauthHandle,
+                                          "https://api.twitter.com/oauth/authorize",
+                                          "https://api.twitter.com/oauth/request_token"));
+        ret = pif->call("getAuthorizeUrlOnOAuth", param4);
+        std::string authUrl = boost::any_cast<std::string>(ret);
+        std::cout << authUrl << std::endl;
+        std::string PIN;
+        std::cout << "PIN :";
+        std::cin >> PIN;
+        boost::any param5(std::make_tuple(handle,
+                                          oauthHandle,
+                                          "https://api.twitter.com/oauth/access_token",
+                                          PIN.c_str()));
+        ret = pif->call("getAccessTokenOnOAuth", param5);
         ss.str("");
         std::string data = "status=test";
         std::string postUrl = "https://api.twitter.com/1.1/statuses/update.json";

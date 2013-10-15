@@ -43,6 +43,7 @@ void PlumageWebApi::init() {
     methodList_["getRequestTokenOnOAuth"] = &PlumageWebApi::getRequestTokenOnOAuth;
     methodList_["getAuthorizeUrlOnOAuth"] = &PlumageWebApi::getAuthorizeUrlOnOAuth;
     methodList_["getAccessTokenOnOAuth"] = &PlumageWebApi::getAccessTokenOnOAuth;
+    //methodList_["getAccessTokenByXAuthOnOAuth"] = &PlumageWebApi::getAccessTokenByXAuthOnOAuth;
     methodList_["postOnOAuth"] = &PlumageWebApi::postOnOAuth;
     methodList_["getOnOAuth"] = &PlumageWebApi::getOnOAuth;
 }
@@ -358,7 +359,7 @@ boost::any PlumageWebApi::getAuthorizeUrlOnOAuth(boost::any& parameter) {
 }
 boost::any PlumageWebApi::getAccessTokenOnOAuth(boost::any& parameter) {
     if(parameter.type() != typeid(std::tuple<CURL*, void*, const char*, const char*>)) {
-        throw std::logic_error("PlumageWebApi::getAuthorizeUrlOnOAuth : parameter invalid.");
+        throw std::logic_error("PlumageWebApi::getAccessTokenOnOAuth : parameter invalid.");
     }
     std::tuple<CURL*, void*, const char*, const char*> p = boost::any_cast<std::tuple<CURL*, void*, const char*, const char*>>(parameter);
     CURL* handle = std::get<0>(p);
@@ -370,6 +371,24 @@ boost::any PlumageWebApi::getAccessTokenOnOAuth(boost::any& parameter) {
     OAuthApi api;
     return api.getAccessToken(handle, oauth, accessUrl, oauth_verify, 1);
 }
+//boost::any PlumageWebApi::getAccessTokenByXAuthOnOAuth(boost::any& parameter) {
+//    if(parameter.type() != typeid(std::tuple<CURL*, void*, const char*, const char*, const char*>)) {
+//        throw std::logic_error("PlumageWebApi::getAccessTokenByXAuthOnOAuth : parameter invalid.");
+//    }
+//
+//    std::tuple<CURL*, void*, const char*, const char*, const char*> p =
+//        boost::any_cast<std::tuple<CURL*, void*, const char*, const char*, const char*>>(parameter);
+//
+//    CURL* handle = std::get<0>(p);
+//    void* tmp = std::get<1>(p);
+//    OAuthApi::OAuthHandler* oauth = (OAuthApi::OAuthHandler*)(tmp);
+//    std::string accessUrl = std::get<2>(p);
+//    std::string userId = std::get<3>(p);
+//    std::string passwd = std::get<4>(p);
+//
+//    OAuthApi api;
+//    return api.getAccessTokenByXAuth(handle, oauth, accessUrl, 1, userId, passwd);
+//}
 boost::any PlumageWebApi::getOnOAuth(boost::any& parameter) {
     if(parameter.type() != typeid(std::tuple<CURL*, void*, const char*, const char*, std::ostream*>)) {
         throw std::logic_error("PlumageWebApi::getOnOAuth : parameter invalid.");
@@ -786,18 +805,6 @@ std::string OAuthApi::getOAuthSignature(std::string url, std::string query, std:
     XmlApi xmlApi;
     xmlApi.encodeToBase64(is, os);
     return std::move(os.str());
-    //// 署名を追加したクエリ文字列
-    //std::ostringstream signed_query;
-
-    //xmlApi.encodeToBase64(is, os);
-    //signed_query << query;
-    //signed_query << "&oauth_signature=";
-    //signed_query << api.encodeToUrlEncode(os.str());
-
-    //// URL を生成
-    //const std::string signed_url = url + '?' + signed_query.str();
-
-    //return signed_url;
 }
 
 std::string OAuthApi::getHMAC(int type, std::string key, std::string data) const {
@@ -863,6 +870,10 @@ std::map<std::string, std::string> OAuthApi::getAccessToken(CURL* curl, OAuthHan
     std::ostringstream oss;
     api.get(curl, url, oss);
 
+#ifdef DEBUG
+    std::cout << oss.str() << std::endl;
+#endif
+
     std::map<std::string, std::string> keyValue = api.parseQueryData(std::move(oss.str()));
 
     if(keyValue.count("oauth_token") == 0) {
@@ -871,11 +882,6 @@ std::map<std::string, std::string> OAuthApi::getAccessToken(CURL* curl, OAuthHan
     if(keyValue.count("oauth_token_secret") == 0) {
         throw std::logic_error("oauth_token_secret is not found");
     }
-
-
-#ifdef DEBUG
-    std::cout << oss.str() << std::endl;
-#endif
 
     oauth->accessToken_ = keyValue.at( "oauth_token" );
     oauth->accessTokenSecret_ = keyValue.at( "oauth_token_secret" );
@@ -886,6 +892,76 @@ std::map<std::string, std::string> OAuthApi::getAccessToken(CURL* curl, OAuthHan
 
     return keyValue;
 }
+
+//std::map<std::string, std::string> OAuthApi::getAccessTokenByXAuth(CURL* curl, OAuthHandler* oauth, std::string url, int type,
+//                                                            std::string userId, std::string passwd) const {
+//
+//    std::ostringstream ss;
+//    namespace uuids = boost::uuids;
+//    const uuids::uuid id = uuids::random_generator()();
+//    ss << "oauth_consumer_key=" << oauth->consumerKey_ << "&"
+//       //<< "oauth_nonce=" << id << "&"
+//       << "oauth_nonce=" << "6AN2dKRzxyGhmIXUKSmp1JcB4pckM8rD3frKMTmVAo" << "&"
+//       << "oauth_signature_method=";
+//
+//    std::string cryptoType = getEncryptTypeString(type);
+//    ss << cryptoType << "&";
+//
+//    std::stringstream timestamp;
+//    timestamp << std::time(0);
+//    //ss << "oauth_timestamp=" << timestamp.str() << "&"
+//    ss << "oauth_timestamp=" << "1284565601" << "&"
+//       << "oauth_version=" << "1.0&"
+//       << "x_auth_mode=client_auth&"
+//       << "x_auth_password=" << passwd << "&"
+//       << "x_auth_username=" << userId;
+//
+//    HttpApi api;
+//    std::string signatureKey = oauth->consumerSecret_ + '&';
+//    std::string signature = getOAuthSignature(url, ss.str(), signatureKey, type);
+//
+//#ifdef DEBUG
+//    std::cout << "POST URL = " << postUrl << std::endl;
+//    ss << "&oauth_signature=" + api.encodeToUrlEncode(signature);
+//    std::string url = postUrl + "?" + ss.str();
+//    std::cout << "FULL URL = " << url << std::endl;
+//    std::cout << "query = " << ss.str() << std::endl;
+//#endif
+//
+//    std::stringstream tmp;
+//    tmp << id;
+//    setOAuthHeader(curl, oauth, tmp.str(), api.encodeToUrlEncode(signature), type, timestamp.str(), "1.0");
+//
+//    std::ostringstream oss;
+//    std::string data = "x_auth_username=" + userId + "&amp;x_auth_password=" + passwd + "&amp;x_auth_mode=client_auth";
+//    api.setPostData(curl, data);
+////#ifdef DEBUG
+//    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
+////#endif
+//    api.post(curl, url, oss);
+//
+////#ifdef DEBUG
+//    std::cout << oss.str() << std::endl;
+////#endif
+//
+//    std::map<std::string, std::string> keyValue = api.parseQueryData(std::move(oss.str()));
+//
+//    if(keyValue.count("oauth_token") == 0) {
+//        throw std::logic_error("oauth_token is not found");
+//    }
+//    if(keyValue.count("oauth_token_secret") == 0) {
+//        throw std::logic_error("oauth_token_secret is not found");
+//    }
+//
+//    oauth->accessToken_ = keyValue.at( "oauth_token" );
+//    oauth->accessTokenSecret_ = keyValue.at( "oauth_token_secret" );
+//
+////#ifdef DEBUG
+//    std::cout << oauth->accessToken_ << " : " << oauth->accessTokenSecret_ << std::endl;
+////#endif
+//
+//    return keyValue;
+//}
 
 std::string OAuthApi::getAuthorizeUrl(CURL* curl, OAuthHandler* oauth, std::string authUrl, std::string requestUrl, int type) const {
     if(oauth->requestToken_.empty()) {
@@ -1044,7 +1120,9 @@ void OAuthApi::setOAuthHeader(CURL* curl, OAuthHandler* oauth,
     authStr << ", oauth_signature=\"" << encodedSignaure << "\"";
     authStr << ", oauth_signature_method=\"" << getEncryptTypeString(type) << "\"";
     authStr << ", oauth_timestamp=\"" << timestamp << "\"";
-    authStr << ", oauth_token=\"" << oauth->accessToken_ << "\"";
+    if(!oauth->accessToken_.empty()) {
+        authStr << ", oauth_token=\"" << oauth->accessToken_ << "\"";
+    }
     authStr << ", oauth_version=\"1.0\"";
     slist = curl_slist_append(slist, authStr.str().c_str());
 

@@ -9,6 +9,7 @@
 
 #include "plumage_webapi/plumage_web_api.hpp"
 
+#include "plumage_webapi/api/http.hpp"
 
 int main(int argc, char const* argv[])
 {
@@ -50,8 +51,10 @@ int main(int argc, char const* argv[])
         pif->call("getOnHttp", param);
         boost::any param2((std::istream*)&ss);
         ret = pif->call("parseJsonData", param2);
-        picojson::value* v = boost::any_cast<picojson::value*>(ret);
-        picojson::array arr = v->get<picojson::array>();
+        picojson::value* v;
+        v = boost::any_cast<picojson::value*>(ret);
+        picojson::array arr;
+        arr = v->get<picojson::array>();
         picojson::array::iterator it;
         for (it = arr.begin(); it != arr.end(); it++) {
             picojson::object obj = it->get<picojson::object>();
@@ -78,8 +81,8 @@ int main(int argc, char const* argv[])
 
         boost::any param9(std::make_tuple("consumer-key",
                                           "consumer-secret",
-                                          "access-key",
-                                          "access-secret"));
+                                          "accessToken-key",
+                                          "accessToken-secret"));
         ret = pif->call("createOAuthHandle", param9);
         void* oauthHandle = boost::any_cast<void*>(ret);
         boost::any param4(std::make_tuple(handle,
@@ -98,7 +101,7 @@ int main(int argc, char const* argv[])
                                           PIN.c_str()));
         ret = pif->call("getAccessTokenOnOAuth", param5);
         ss.str("");
-        std::string data = "status=test";
+        std::string data = "status=tweet test.";
         std::string postUrl = "https://api.twitter.com/1.1/statuses/update.json";
         boost::any param10(std::make_tuple(handle,
                                            oauthHandle,
@@ -111,7 +114,7 @@ int main(int argc, char const* argv[])
         boost::any param11(std::make_tuple(handle,
                                            oauthHandle,
                                            "https://api.twitter.com/1.1/search/tweets.json",
-                                           "lang=ja&q=vim&local=ja&count=30",
+                                           "q=Vim&lang=ja",
                                            (std::ostream*)&ss));
         pif->call("getOnOAuth", param11);
         std::cout << ss.str() << std::endl;
@@ -134,6 +137,7 @@ int main(int argc, char const* argv[])
     pif->stop();
     boost::any end(handle);
     pif->call("deleteHandle", end);
+
     return 0;
 }
 

@@ -20,7 +20,7 @@ class PlumageWebApi : public plumage::PluginEntity {
     typedef boost::any (PlumageWebApi::*Method)(boost::any&);
 
     std::set<CURL*> curlHandles_;
-    std::set<OAuthApi::OAuthHandler*> oauthHandles_;
+    std::set<OAuthApi::OAuthHandle*> oauthHandles_;
     std::map<std::string, Method> methodList_;
 
     void init();
@@ -38,7 +38,7 @@ class PlumageWebApi : public plumage::PluginEntity {
     // for HTTP API
     boost::any getOnHttp(boost::any& parameter);
     boost::any postOnHttp(boost::any& parameter);
-    boost::any encodeToUrlEncode(boost::any& parameter);
+    boost::any encodeToPercentEncoding(boost::any& parameter);
 
     // for auth
     //void* setBasicAuth(boost::any& parameter);
@@ -55,6 +55,7 @@ class PlumageWebApi : public plumage::PluginEntity {
 
     // for OAuth
     boost::any createOAuthHandle(boost::any& parameter);
+    boost::any updateOAuthHandle(boost::any& parameter);
     boost::any deleteOAuthHandle(boost::any& parameter);
     boost::any getAuthorizeUrlOnOAuth(boost::any& parameter);
     boost::any getRequestTokenOnOAuth(boost::any& parameter);

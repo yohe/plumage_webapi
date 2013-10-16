@@ -12,7 +12,7 @@ public:
     void get(CURL* curl, const std::string& url, std::ostream& stream) const;
     void setPostData(CURL* curl, const std::string& data) const;
     void post(CURL* curl, const std::string& url, std::ostream& stream) const;
-    std::string encodeToUrlEncode(const std::string data) const;
+    std::string encodeToPercentEncoding(std::string data) const;
 
     std::map<std::string, std::string> parseQueryData(const std::string& data) const;
 };

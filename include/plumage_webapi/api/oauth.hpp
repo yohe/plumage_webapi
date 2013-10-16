@@ -7,7 +7,7 @@
 
 class OAuthApi {
 public:
-    struct OAuthHandler {
+    struct OAuthHandle {
         std::string consumerKey_;
         std::string consumerSecret_;
         std::string requestToken_;
@@ -15,6 +15,11 @@ public:
         std::string oauthVerifier_;
         std::string accessToken_;
         std::string accessTokenSecret_;
+    };
+    enum UseTokenType : int {
+        NONE = 0,
+        REQUEST_TOKEN = 1,
+        ACCESS_TOKEN = 2
     };
     enum EncryptType : int {
         HMAC_MD5  = 0,
@@ -27,17 +32,17 @@ public:
         SHA2_SIZE = 64
     };
 
-    std::map<std::string, std::string> getRequestToken(CURL* curl, OAuthHandler* oauth, std::string url, int type) const;
-    std::map<std::string, std::string> getAccessToken(CURL* curl, OAuthHandler* oauth, std::string url, std::string oauth_verify, int type) const;
-    std::map<std::string, std::string> getAccessTokenByXAuth(CURL* curl, OAuthHandler* oauth,
+    std::map<std::string, std::string> getRequestToken(CURL* curl, OAuthHandle* oauth, std::string url, int type) const;
+    std::map<std::string, std::string> getAccessToken(CURL* curl, OAuthHandle* oauth, std::string url, std::string oauth_verify, int type) const;
+    std::map<std::string, std::string> getAccessTokenByXAuth(CURL* curl, OAuthHandle* oauth,
                                                                std::string url, int type, std::string user, std::string pass) const;
-    std::string getAuthorizeUrl(CURL* curl, OAuthHandler* oauth, std::string authUrl, std::string requestUrl, int type) const;
-    void post(CURL* curl, OAuthHandler* oauth, std::string url, std::string data, int type, std::ostream& os) const;
-    void get(CURL* curl, OAuthHandler* oauth, std::string url, std::string data, int type, std::ostream& os) const;
-    OAuthHandler* createOAuthHandle();
+    std::string getAuthorizeUrl(CURL* curl, OAuthHandle* oauth, std::string authUrl, std::string requestUrl, int type) const;
+    void post(CURL* curl, OAuthHandle* oauth, std::string url, std::string data, int type, std::ostream& os) const;
+    void get(CURL* curl, OAuthHandle* oauth, std::string url, std::string data, int type, std::ostream& os) const;
+    OAuthHandle* createOAuthHandle();
 private:
-    void setOAuthHeader(CURL* curl, OAuthHandler* oauth,
-                        std::string nonce, std::string encodedSignaure, int type, std::string timestamp, std::string version) const;
+    void setOAuthHeader(CURL* curl, OAuthHandle* oauth, UseTokenType useTokenType,
+                        std::string url, std::string method, std::string data, EncryptType encryptType) const;
 
     std::string getOAuthSignature(std::string url, std::string query, std::string consumerSecret, int type, std::string requestType="GET") const;
     std::string getHMAC(int algorithm, std::string key, std::string data) const;

@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <functional>
 
 #include <plumage/plugin_repository.hpp>
 #include <plumage/plugin_manager.hpp>
@@ -10,6 +11,18 @@
 #include "plumage_webapi/plumage_web_api.hpp"
 
 #include "plumage_webapi/api/http.hpp"
+
+size_t callBackFunction(char* data, size_t size) {
+
+    static std::ostringstream oss;
+    if(size != CURL_MAX_WRITE_SIZE) {
+        oss.write(data, size);
+        std::cout << oss.str() << std::endl;
+    } else {
+        oss.write(data, size);
+    }
+    return size;
+}
 
 int main(int argc, char const* argv[])
 {
@@ -111,11 +124,17 @@ int main(int argc, char const* argv[])
         pif->call("postOnOAuth", param10);
         std::cout << ss.str() << std::endl;
         ss.str("");
+        std::function<size_t(char*,size_t)> f = &callBackFunction;
         boost::any param11(std::make_tuple(handle,
                                            oauthHandle,
                                            "https://api.twitter.com/1.1/search/tweets.json",
                                            "q=Vim&lang=ja",
                                            (std::ostream*)&ss));
+        //boost::any param11(std::make_tuple(handle,
+        //                                   oauthHandle,
+        //                                   "https://api.twitter.com/1.1/search/tweets.json",
+        //                                   "q=Vim&lang=ja",
+        //                                   &f));
         pif->call("getOnOAuth", param11);
         std::cout << ss.str() << std::endl;
         boost::any searchResult((std::istream*)&ss);

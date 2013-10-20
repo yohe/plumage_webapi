@@ -3,7 +3,7 @@
 
 #include <string>
 #include <map>
-#include <curl/curl.h>
+#include "plumage_webapi/curl/curl_data.hpp"
 
 class OAuthApi {
 public:
@@ -32,16 +32,30 @@ public:
         SHA2_SIZE = 64
     };
 
-    std::map<std::string, std::string> getRequestToken(CURL* curl, OAuthHandle* oauth, std::string url, int type) const;
-    std::map<std::string, std::string> getAccessToken(CURL* curl, OAuthHandle* oauth, std::string url, std::string oauth_verify, int type) const;
-    std::map<std::string, std::string> getAccessTokenByXAuth(CURL* curl, OAuthHandle* oauth,
-                                                               std::string url, int type, std::string user, std::string pass) const;
-    std::string getAuthorizeUrl(CURL* curl, OAuthHandle* oauth, std::string authUrl, std::string requestUrl, int type) const;
-    void post(CURL* curl, OAuthHandle* oauth, std::string url, std::string data, int type, std::ostream& os) const;
-    void get(CURL* curl, OAuthHandle* oauth, std::string url, std::string data, int type, std::ostream& os) const;
     OAuthHandle* createOAuthHandle();
+    std::map<std::string, std::string> getRequestToken(CurlData* curl, OAuthHandle* oauth, std::string url, int type) const;
+    std::map<std::string, std::string> getAccessToken(CurlData* curl, OAuthHandle* oauth, std::string url, std::string oauth_verify, int type) const;
+    std::map<std::string, std::string> getAccessTokenByXAuth(CurlData* curl, OAuthHandle* oauth,
+                                                               std::string url, int type, std::string user, std::string pass) const;
+    std::string getAuthorizeUrl(CurlData* curl, OAuthHandle* oauth, std::string authUrl, std::string requestUrl, int type) const;
+
+    template <class T>
+    void get(CurlData* curl, OAuthHandle* oauth, std::string url, std::string data, int type, T* listner) const {
+        curl->setWriteTarget(listner);
+        get(curl, oauth, url, data, type);
+    }
+    template <class T>
+    void post(CurlData* curl, OAuthHandle* oauth, std::string url, std::string data, int type, T* listner) const {
+        curl->setWriteTarget(listner);
+        post(curl, oauth, url, data, type);
+    }
+
+    void get(CurlData* curl, OAuthHandle* oauth, std::string url, std::string data, int type) const;
+    void post(CurlData* curl, OAuthHandle* oauth, std::string url, std::string data, int type) const;
+
+
 private:
-    void setOAuthHeader(CURL* curl, OAuthHandle* oauth, UseTokenType useTokenType,
+    void setOAuthHeader(CurlData* curl, OAuthHandle* oauth, UseTokenType useTokenType,
                         std::string url, std::string method, std::string data, EncryptType encryptType) const;
 
     std::string getOAuthSignature(std::string url, std::string query, std::string consumerSecret, int type, std::string requestType="GET") const;

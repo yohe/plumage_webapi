@@ -11,6 +11,8 @@
 
 #include <plumage/plugin_entity.hpp>
 #include "plumage_webapi/api/oauth.hpp"
+#include "plumage_webapi/curl/curl_callback.hpp"
+#include "plumage_webapi/curl/curl_data.hpp"
 
 class PlumageWebApi : public plumage::PluginEntity {
 
@@ -19,7 +21,7 @@ class PlumageWebApi : public plumage::PluginEntity {
 
     typedef boost::any (PlumageWebApi::*Method)(boost::any&);
 
-    std::set<CURL*> curlHandles_;
+    std::map<CURL*, CurlData*> curlHandles_;
     std::set<OAuthApi::OAuthHandle*> oauthHandles_;
     std::map<std::string, Method> methodList_;
 
@@ -102,16 +104,5 @@ protected:
     virtual boost::any doCall(std::string methodName, boost::any& paramter) throw (std::exception);
 
 };
-
-size_t readInputStream(char* ptr, size_t size, size_t nmemb, std::istream* stream);
-size_t writeOutputStream(char* ptr, size_t size, size_t nmemb, std::ostream* stream);
-int progress_func(void* ptr, double TotalToDownload, double NowDownloaded, double TotalToUpload, double NowUploaded);
-
-//class AuthApi {
-//public:
-//
-//    void useBasicAuth(CURL*, const std::string& username, const std::string& passwd) const;
-//
-//};
 
 #endif

@@ -4,16 +4,28 @@
 #include <string>
 #include <ostream>
 #include <map>
-#include <curl/curl.h>
+#include "plumage_webapi/curl/curl_data.hpp"
 
 class HttpApi {
 public:
 
-    void get(CURL* curl, const std::string& url, std::ostream& stream) const;
-    void setPostData(CURL* curl, const std::string& data) const;
-    void post(CURL* curl, const std::string& url, std::ostream& stream) const;
-    std::string encodeToPercentEncoding(std::string data) const;
+    void setPostData(CurlData* curl, const std::string& data) const;
 
+    template <class T>
+    void get(CurlData* curl, const std::string& url, T* listner) const {
+        curl->setWriteTarget(listner);
+        get(curl, url);
+    }
+    void get(CurlData* curl, const std::string& url) const;
+
+    template <class T>
+    void post(CurlData* curl, const std::string& url, T* listner) const {
+        curl->setWriteTarget(listner);
+        post(curl, url);
+    }
+    void post(CurlData* curl, const std::string& url) const;
+
+    std::string encodeToPercentEncoding(std::string data) const;
     std::map<std::string, std::string> parseQueryData(const std::string& data) const;
 };
 

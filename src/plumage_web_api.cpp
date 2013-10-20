@@ -51,7 +51,8 @@ void PlumageWebApi::init() {
 
 boost::any PlumageWebApi::createHandle(boost::any& parameter) {
     CURL* handle = curl_easy_init();
-    curlHandles_.insert(handle);
+    CurlData* data = new CurlData(handle);
+    curlHandles_.insert(std::make_pair(handle, data));
     return handle;
 }
 
@@ -83,7 +84,7 @@ boost::any PlumageWebApi::listUpFileOnFtp(boost::any& parameter) {
     }
 
     FtpApi api;
-    api.listUpFile(handle, url, option, *os);
+    api.listUpFile(curlHandles_[handle], url, option, *os);
     return nullptr;
 }
 
@@ -101,7 +102,7 @@ boost::any PlumageWebApi::downloadFileOnFtp_wait(boost::any& parameter) {
     }
 
     FtpApi api;
-    api.downloadFile(handle, url, *os);
+    api.downloadFile(curlHandles_[handle], url, *os);
     return nullptr;
 }
 
@@ -119,7 +120,7 @@ boost::any PlumageWebApi::createDirectoryOnFtp(boost::any& parameter) {
     }
 
     FtpApi api;
-    api.createDirectory(handle, url, recursive);
+    api.createDirectory(curlHandles_[handle], url, recursive);
     return nullptr;
 }
 
@@ -137,7 +138,7 @@ boost::any PlumageWebApi::uploadFileOnFtp_wait(boost::any& parameter) {
     }
 
     FtpApi api;
-    api.uploadFile(handle, url, *is);
+    api.uploadFile(curlHandles_[handle], url, *is);
     return nullptr;
 }
 boost::any PlumageWebApi::getOnHttp(boost::any& parameter) {
@@ -154,7 +155,7 @@ boost::any PlumageWebApi::getOnHttp(boost::any& parameter) {
     }
 
     HttpApi api;
-    api.get(handle, url, *os);
+    api.get(curlHandles_[handle], url, os);
     return nullptr;
 }
 boost::any PlumageWebApi::postOnHttp(boost::any& parameter) {
@@ -172,8 +173,8 @@ boost::any PlumageWebApi::postOnHttp(boost::any& parameter) {
     }
 
     HttpApi api;
-    api.setPostData(handle, data);
-    api.post(handle, url, *os);
+    api.setPostData(curlHandles_[handle], data);
+    api.post(curlHandles_[handle], url, os);
     return nullptr;
 }
 
@@ -363,11 +364,11 @@ boost::any PlumageWebApi::getRequestTokenOnOAuth(boost::any& parameter) {
         throw std::logic_error("PlumageWebApi::getRequestTokenOnOAuth : parameter invalid.");
     }
     std::tuple<CURL*, void*, const char*> p = boost::any_cast<std::tuple<CURL*, void*, const char*>>(parameter);
-    CURL* curl = std::get<0>(p);
+    CURL* handle = std::get<0>(p);
     void* tmp = std::get<1>(p);
     OAuthApi::OAuthHandle* oauth = (OAuthApi::OAuthHandle*)(tmp);
 
-    if(curlHandles_.find(curl) == curlHandles_.end()) {
+    if(curlHandles_.find(handle) == curlHandles_.end()) {
         throw std::logic_error("PlumageWebApi::getRequestTokenOnOAuth  : Handle is not valid.");
     }
     if(oauthHandles_.find(oauth) == oauthHandles_.end()) {
@@ -377,7 +378,7 @@ boost::any PlumageWebApi::getRequestTokenOnOAuth(boost::any& parameter) {
     std::string url = std::get<2>(p);
 
     OAuthApi api;
-    return std::move(api.getRequestToken(curl, oauth, url, 1));
+    return std::move(api.getRequestToken(curlHandles_[handle], oauth, url, 1));
 }
 boost::any PlumageWebApi::getAuthorizeUrlOnOAuth(boost::any& parameter) {
     if(parameter.type() != typeid(std::tuple<CURL*, void*, const char*, const char*>)) {
@@ -399,7 +400,7 @@ boost::any PlumageWebApi::getAuthorizeUrlOnOAuth(boost::any& parameter) {
     }
 
     OAuthApi api;
-    std::string ret = api.getAuthorizeUrl(handle, oauth, authUrl, requestUrl, 1);
+    std::string ret = api.getAuthorizeUrl(curlHandles_[handle], oauth, authUrl, requestUrl, 1);
 
     return ret;
 }
@@ -415,7 +416,7 @@ boost::any PlumageWebApi::getAccessTokenOnOAuth(boost::any& parameter) {
     std::string oauth_verify = std::get<3>(p);
 
     OAuthApi api;
-    return api.getAccessToken(handle, oauth, accessUrl, oauth_verify, 1);
+    return api.getAccessToken(curlHandles_[handle], oauth, accessUrl, oauth_verify, 1);
 }
 //boost::any PlumageWebApi::getAccessTokenByXAuthOnOAuth(boost::any& parameter) {
 //    if(parameter.type() != typeid(std::tuple<CURL*, void*, const char*, const char*, const char*>)) {
@@ -436,21 +437,36 @@ boost::any PlumageWebApi::getAccessTokenOnOAuth(boost::any& parameter) {
 //    return api.getAccessTokenByXAuth(handle, oauth, accessUrl, 1, userId, passwd);
 //}
 boost::any PlumageWebApi::getOnOAuth(boost::any& parameter) {
-    if(parameter.type() != typeid(std::tuple<CURL*, void*, const char*, const char*, std::ostream*>)) {
+    if(parameter.type() == typeid(std::tuple<CURL*, void*, const char*, const char*, std::ostream*>)) {
+        std::tuple<CURL*, void*, const char*, const char*, std::ostream*> p =
+            boost::any_cast<std::tuple<CURL*, void*, const char*, const char*, std::ostream*>>(parameter);
+
+        CURL* handle = std::get<0>(p);
+        void* tmp = std::get<1>(p);
+        OAuthApi::OAuthHandle* oauth = (OAuthApi::OAuthHandle*)(tmp);
+        std::string getUrl = std::get<2>(p);
+        std::string query = std::get<3>(p);
+        std::ostream* os = std::get<4>(p);
+
+        OAuthApi api;
+        api.get(curlHandles_[handle], oauth, getUrl, query, 1, os);
+    } else if(parameter.type() == typeid(std::tuple<CURL*, void*, const char*, const char*, ReceiveDataListner*>)) {
+        std::tuple<CURL*, void*, const char*, const char*, ReceiveDataListner*> p =
+            boost::any_cast<std::tuple<CURL*, void*, const char*, const char*, ReceiveDataListner*>>(parameter);
+
+        CURL* handle = std::get<0>(p);
+        void* tmp = std::get<1>(p);
+        OAuthApi::OAuthHandle* oauth = (OAuthApi::OAuthHandle*)(tmp);
+        std::string getUrl = std::get<2>(p);
+        std::string query = std::get<3>(p);
+        ReceiveDataListner* listner = std::get<4>(p);
+
+        OAuthApi api;
+        api.get(curlHandles_[handle], oauth, getUrl, query, 1, listner);
+
+    } else {
         throw std::logic_error("PlumageWebApi::getOnOAuth : parameter invalid.");
     }
-    std::tuple<CURL*, void*, const char*, const char*, std::ostream*> p =
-        boost::any_cast<std::tuple<CURL*, void*, const char*, const char*, std::ostream*>>(parameter);
-
-    CURL* handle = std::get<0>(p);
-    void* tmp = std::get<1>(p);
-    OAuthApi::OAuthHandle* oauth = (OAuthApi::OAuthHandle*)(tmp);
-    std::string getUrl = std::get<2>(p);
-    std::string query = std::get<3>(p);
-    std::ostream* os = std::get<4>(p);
-
-    OAuthApi api;
-    api.get(handle, oauth, getUrl, query, 1, *os);
     return nullptr;
 }
 boost::any PlumageWebApi::postOnOAuth(boost::any& parameter) {
@@ -468,7 +484,7 @@ boost::any PlumageWebApi::postOnOAuth(boost::any& parameter) {
     std::ostream* os = std::get<4>(p);
 
     OAuthApi api;
-    api.post(handle, oauth, postUrl, data, 1, *os);
+    api.post(curlHandles_[handle], oauth, postUrl, data, 1, os);
     return nullptr;
 }
 
@@ -491,10 +507,16 @@ boost::any PlumageWebApi::doCall(std::string methodName, boost::any& parameter) 
     return (this->*method)(parameter);
 }
 
-size_t writeOutputStream(char* ptr, size_t size, size_t nmemb, std::ostream* stream) {
+size_t writeOutputStream(char* ptr, size_t size, size_t nmemb, void* stream) {
+    std::ostream* os = static_cast<std::ostream*>(stream);
     int realsize = size * nmemb;
-    stream->write(ptr, realsize);
+    os->write(ptr, realsize);
     return realsize;
+}
+size_t notifyUserCallback(char* ptr, size_t size, size_t nmemb, void* func) {
+    std::function<size_t(char*,size_t)>* userCallback = static_cast<std::function<size_t(char*,size_t)>*>(func);
+    int realsize = size * nmemb;
+    return (*userCallback)(ptr, realsize);
 }
 size_t readInputStream(char* ptr, size_t size, size_t nmemb, std::istream* stream) {
     int realsize = size * nmemb;
@@ -511,39 +533,41 @@ int progress_func(void* ptr, double TotalToDownload, double NowDownloaded,
     return 0;
 }
 
-void FtpApi::listUpFile(CURL* curl, const std::string& url, bool nameOnly, std::ostream& os) const {
+void FtpApi::listUpFile(CurlData* curlData, const std::string& url, bool nameOnly, std::ostream& os) const {
     std::string tmp(url);
     if(url.at(url.size()-1) != '/') {
         tmp += "/";
     }
-    curl_easy_setopt(curl, CURLOPT_URL, tmp.c_str());
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &writeOutputStream);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &os);
+    curl_easy_setopt(curlData->curl, CURLOPT_URL, tmp.c_str());
+    curlData->setWriteTarget(&os);
+    //curl_easy_setopt(curlData->curl, CURLOPT_WRITEFUNCTION, &writeOutputStream);
+    //curl_easy_setopt(curlData->curl, CURLOPT_WRITEDATA, &os);
     if(nameOnly) {
-        curl_easy_setopt(curl, CURLOPT_DIRLISTONLY, 1);
+        curl_easy_setopt(curlData->curl, CURLOPT_DIRLISTONLY, 1);
     }
 
     CURLcode res;
-    res = curl_easy_perform(curl);
+    res = curl_easy_perform(curlData->curl);
 #ifdef DEBUG
     std::cout << "Response : " << res << std::endl;
 #endif
 
 }
 
-void FtpApi::downloadFile(CURL* curl, const std::string& url, std::ostream& os) const {
+void FtpApi::downloadFile(CurlData* curlData, const std::string& url, std::ostream& os) const {
     std::string tmp(url);
     if(url.at(url.size()-1) == '/') {
         throw std::logic_error("URL is not valid. It is not specify a direcotry naem.");
     }
-    curl_easy_setopt(curl, CURLOPT_URL, tmp.c_str());
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &writeOutputStream);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &os);
-    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0);
-    curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, progress_func);
+    curl_easy_setopt(curlData->curl, CURLOPT_URL, tmp.c_str());
+    curlData->setWriteTarget(&os);
+    //curl_easy_setopt(curlData->curl, CURLOPT_WRITEFUNCTION, &writeOutputStream);
+    //curl_easy_setopt(curlData->curl, CURLOPT_WRITEDATA, &os);
+    curl_easy_setopt(curlData->curl, CURLOPT_NOPROGRESS, 0);
+    curl_easy_setopt(curlData->curl, CURLOPT_PROGRESSFUNCTION, progress_func);
 
     CURLcode res;
-    res = curl_easy_perform(curl);
+    res = curl_easy_perform(curlData->curl);
 #ifdef DEBUG
     std::cout << "Response : " << res << std::endl;
     std::cout << std::endl;
@@ -551,69 +575,71 @@ void FtpApi::downloadFile(CURL* curl, const std::string& url, std::ostream& os) 
 
 }
 
-void FtpApi::createDirectory(CURL* curl, const std::string& url, bool recursive) const {
+void FtpApi::createDirectory(CurlData* curlData, const std::string& url, bool recursive) const {
     std::string tmp(url);
     if(url.at(url.size()-1) != '/') {
         throw std::logic_error("URL is not valid. It can specify a direcotry name only.");
     }
-    curl_easy_setopt(curl, CURLOPT_URL, tmp.c_str());
-    curl_easy_setopt(curl, CURLOPT_FTP_CREATE_MISSING_DIRS, CURLFTP_CREATE_DIR_RETRY);
+    curl_easy_setopt(curlData->curl, CURLOPT_URL, tmp.c_str());
+    curl_easy_setopt(curlData->curl, CURLOPT_FTP_CREATE_MISSING_DIRS, CURLFTP_CREATE_DIR_RETRY);
 
     CURLcode res;
-    res = curl_easy_perform(curl);
+    res = curl_easy_perform(curlData->curl);
 #ifdef DEBUG
     std::cout << "Response : " << res << std::endl;
 #endif
 
 }
-void FtpApi::uploadFile(CURL* curl, const std::string& url, const std::istream& is) const {
+void FtpApi::uploadFile(CurlData* curlData, const std::string& url, const std::istream& is) const {
     std::string tmp(url);
     if(url.at(url.size()-1) == '/') {
         throw std::logic_error("URL is not valid. It can not specify a direcotry name in URL.");
     }
-    curl_easy_setopt(curl, CURLOPT_URL, tmp.c_str());
-    curl_easy_setopt(curl, CURLOPT_READFUNCTION, &readInputStream);
-    curl_easy_setopt(curl, CURLOPT_READDATA, &is);
+    curl_easy_setopt(curlData->curl, CURLOPT_URL, tmp.c_str());
+    curl_easy_setopt(curlData->curl, CURLOPT_READFUNCTION, &readInputStream);
+    curl_easy_setopt(curlData->curl, CURLOPT_READDATA, &is);
 
     CURLcode res;
-    res = curl_easy_perform(curl);
+    res = curl_easy_perform(curlData->curl);
 #ifdef DEBUG
     std::cout << "Response : " << res << std::endl;
 #endif
 
 }
 
-void HttpApi::get(CURL* curl, const std::string& url, std::ostream& os) const {
-    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &writeOutputStream);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &os);
-    curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
+void HttpApi::get(CurlData* curlData, const std::string& url) const {
+    curl_easy_setopt(curlData->curl, CURLOPT_URL, url.c_str());
+    //curlData->setWriteTarget(&os);
+    //curl_easy_setopt(curlData->curl, CURLOPT_WRITEFUNCTION, &writeOutputStream);
+    //curl_easy_setopt(curlData->curl, CURLOPT_WRITEDATA, &os);
+    curl_easy_setopt(curlData->curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
 
-    curl_easy_setopt(curl, CURLOPT_HTTPGET, 1);
+    curl_easy_setopt(curlData->curl, CURLOPT_HTTPGET, 1);
     CURLcode res;
-    res = curl_easy_perform(curl);
+    res = curl_easy_perform(curlData->curl);
 #ifdef DEBUG
     std::cout << "Response : " << res << std::endl;
 #endif
 
 }
 
-void HttpApi::post(CURL* curl, const std::string& url, std::ostream& os) const {
-    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &writeOutputStream);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &os);
-    curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
+void HttpApi::post(CurlData* curlData, const std::string& url) const {
+    curl_easy_setopt(curlData->curl, CURLOPT_URL, url.c_str());
+    //curlData->setWriteTarget(&os);
+    //curl_easy_setopt(curlData->curl, CURLOPT_WRITEFUNCTION, &writeOutputStream);
+    //curl_easy_setopt(curlData->curl, CURLOPT_WRITEDATA, &os);
+    curl_easy_setopt(curlData->curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
 
     CURLcode res;
-    res = curl_easy_perform(curl);
+    res = curl_easy_perform(curlData->curl);
 #ifdef DEBUG
     std::cout << "Response : " << res << std::endl;
 #endif
 
 }
 
-void HttpApi::setPostData(CURL* curl, const std::string& data) const {
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str());
+void HttpApi::setPostData(CurlData* curlData, const std::string& data) const {
+    curl_easy_setopt(curlData->curl, CURLOPT_POSTFIELDS, data.c_str());
 }
 
 std::string HttpApi::encodeToPercentEncoding(std::string data) const {
@@ -787,7 +813,7 @@ unsigned char XmlApi::getDecodedBit(char base64char) const {
     return (base64char - 0x47);
 }
 
-std::map<std::string, std::string> OAuthApi::getRequestToken(CURL* curl, OAuthHandle* oauth, std::string url, int type) const {
+std::map<std::string, std::string> OAuthApi::getRequestToken(CurlData* curlData, OAuthHandle* oauth, std::string url, int type) const {
     std::ostringstream ss;
     namespace uuids = boost::uuids;
     const uuids::uuid id = uuids::random_generator()();
@@ -809,7 +835,7 @@ std::map<std::string, std::string> OAuthApi::getRequestToken(CURL* curl, OAuthHa
     ss.str("");
 
     std::ostringstream oss;
-    api.get(curl, url, oss);
+    api.get(curlData, url, (std::ostream*)&oss);
 
     std::map<std::string, std::string> keyValue = api.parseQueryData(std::move(oss.str()));
 
@@ -892,20 +918,20 @@ std::string OAuthApi::getHMAC(int type, std::string key, std::string data) const
   return digest;
 }
 
-std::map<std::string, std::string> OAuthApi::getAccessToken(CURL* curl, OAuthHandle* oauth, std::string url, std::string oauth_verifier, int type) const {
+std::map<std::string, std::string> OAuthApi::getAccessToken(CurlData* curlData, OAuthHandle* oauth, std::string url, std::string oauth_verifier, int type) const {
 
     HttpApi api;
 
     oauth->oauthVerifier_ = oauth_verifier;
     std::string data = "oauth_verifier=" + oauth_verifier;
-    setOAuthHeader(curl, oauth, REQUEST_TOKEN, url, "GET", data, HMAC_SHA1);
+    setOAuthHeader(curlData, oauth, REQUEST_TOKEN, url, "GET", data, HMAC_SHA1);
 
 #ifdef DEBUG
-    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
+    curl_easy_setopt(curlData->curl, CURLOPT_VERBOSE, 1);
 #endif
 
     std::ostringstream oss;
-    api.get(curl, url, oss);
+    api.get(curlData, url, (std::ostream*)&oss);
 
 #ifdef DEBUG
     std::cout << oss.str() << std::endl;
@@ -930,7 +956,7 @@ std::map<std::string, std::string> OAuthApi::getAccessToken(CURL* curl, OAuthHan
     return keyValue;
 }
 
-//std::map<std::string, std::string> OAuthApi::getAccessTokenByXAuth(CURL* curl, OAuthHandle* oauth, std::string url, int type,
+//std::map<std::string, std::string> OAuthApi::getAccessTokenByXAuth(CurlData* curlData, OAuthHandle* oauth, std::string url, int type,
 //                                                            std::string userId, std::string passwd) const {
 //
 //    std::ostringstream ss;
@@ -967,15 +993,15 @@ std::map<std::string, std::string> OAuthApi::getAccessToken(CURL* curl, OAuthHan
 //
 //    std::stringstream tmp;
 //    tmp << id;
-//    setOAuthHeader(curl, oauth, tmp.str(), api.encodeToPercentEncoding(signature), type, timestamp.str(), "1.0");
+//    setOAuthHeader(curlData->curl, oauth, tmp.str(), api.encodeToPercentEncoding(signature), type, timestamp.str(), "1.0");
 //
 //    std::ostringstream oss;
 //    std::string data = "x_auth_username=" + userId + "&amp;x_auth_password=" + passwd + "&amp;x_auth_mode=client_auth";
-//    api.setPostData(curl, data);
+//    api.setPostData(curlData->curl, data);
 ////#ifdef DEBUG
-//    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
+//    curl_easy_setopt(curlData->curl, CURLOPT_VERBOSE, 1);
 ////#endif
-//    api.post(curl, url, oss);
+//    api.post(curlData->curl, url, oss);
 //
 ////#ifdef DEBUG
 //    std::cout << oss.str() << std::endl;
@@ -1000,18 +1026,18 @@ std::map<std::string, std::string> OAuthApi::getAccessToken(CURL* curl, OAuthHan
 //    return keyValue;
 //}
 
-std::string OAuthApi::getAuthorizeUrl(CURL* curl, OAuthHandle* oauth, std::string authUrl, std::string requestUrl, int type) const {
+std::string OAuthApi::getAuthorizeUrl(CurlData* curlData, OAuthHandle* oauth, std::string authUrl, std::string requestUrl, int type) const {
     if(oauth->requestToken_.empty()) {
-        getRequestToken(curl, oauth, requestUrl, type);
+        getRequestToken(curlData, oauth, requestUrl, type);
     }
     authUrl += "?oauth_token=" + oauth->requestToken_;
     return authUrl;
 }
 
-void OAuthApi::get(CURL* curl, OAuthHandle* oauth, std::string getUrl, std::string data, int type, std::ostream& os) const {
+void OAuthApi::get(CurlData* curlData, OAuthHandle* oauth, std::string getUrl, std::string data, int type) const {
     HttpApi api;
 
-    setOAuthHeader(curl, oauth, ACCESS_TOKEN, getUrl, "GET", data, HMAC_SHA1);
+    setOAuthHeader(curlData, oauth, ACCESS_TOKEN, getUrl, "GET", data, HMAC_SHA1);
 
     //HttpApi::SpaceToPlusTranslator t;
     //t(data);
@@ -1023,29 +1049,29 @@ void OAuthApi::get(CURL* curl, OAuthHandle* oauth, std::string getUrl, std::stri
 #endif
 
 #ifdef DEBUG
-    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
+    curl_easy_setopt(curlData->curl, CURLOPT_VERBOSE, 1);
 #endif
 
-    api.get(curl, url, os);
+    api.get(curlData, url);
 }
 
-void OAuthApi::post(CURL* curl, OAuthHandle* oauth, std::string postUrl, std::string data, int type, std::ostream& os) const {
+void OAuthApi::post(CurlData* curlData, OAuthHandle* oauth, std::string postUrl, std::string data, int type) const {
     HttpApi api;
 
-    setOAuthHeader(curl, oauth, ACCESS_TOKEN, postUrl, "POST", data, HMAC_SHA1);
+    setOAuthHeader(curlData, oauth, ACCESS_TOKEN, postUrl, "POST", data, HMAC_SHA1);
 
 #ifdef DEBUG
     std::cout << "URL = " << postUrl << std::endl;
 #endif
 
 #ifdef DEBUG
-    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
+    curl_easy_setopt(curlData->curl, CURLOPT_VERBOSE, 1);
 #endif
 
     data = serializeQuery(std::move(tokenizeQuery(data)));
-    api.setPostData(curl, data);
+    api.setPostData(curlData, data);
 
-    api.post(curl, postUrl, os);
+    api.post(curlData, postUrl);
 }
 
 std::map<std::string, std::string> OAuthApi::tokenizeQuery(std::string query) const {
@@ -1102,7 +1128,7 @@ std::string OAuthApi::serializeQuery(std::map<std::string, std::string> queries)
     return std::move(ret);
 }
 
-void OAuthApi::setOAuthHeader(CURL* curl, OAuthHandle* oauth, OAuthApi::UseTokenType useTokenType,
+void OAuthApi::setOAuthHeader(CurlData* curlData, OAuthHandle* oauth, OAuthApi::UseTokenType useTokenType,
                               std::string url, std::string method, std::string data, OAuthApi::EncryptType encryptType) const {
 
     HttpApi api;
@@ -1162,7 +1188,7 @@ void OAuthApi::setOAuthHeader(CURL* curl, OAuthHandle* oauth, OAuthApi::UseToken
     std::cout << "Authorization Header : " << authStr.str() << std::endl;
 #endif
 
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, slist);
+    curl_easy_setopt(curlData->curl, CURLOPT_HTTPHEADER, slist);
 }
 
 std::string OAuthApi::getEncryptTypeString(int type) const {

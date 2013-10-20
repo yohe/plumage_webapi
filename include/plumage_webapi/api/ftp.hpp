@@ -3,15 +3,15 @@
 
 #include <string>
 #include <ostream>
-#include <curl/curl.h>
+#include "plumage_webapi/curl/curl_data.hpp"
 
 class FtpApi {
 public:
 
-    void listUpFile(CURL* curl, const std::string& url, bool nameOnly, std::ostream& stream) const;
-    void downloadFile(CURL* curl, const std::string& url, std::ostream& stream) const;
-    void createDirectory(CURL* curl, const std::string& url, bool recursive) const;
-    void uploadFile(CURL* curl, const std::string& url, const std::istream& stream) const;
+    void listUpFile(CurlData* curl, const std::string& url, bool nameOnly, std::ostream& stream) const;
+    void downloadFile(CurlData* curl, const std::string& url, std::ostream& stream) const;
+    void createDirectory(CurlData* curl, const std::string& url, bool recursive) const;
+    void uploadFile(CurlData* curl, const std::string& url, const std::istream& stream) const;
 };
 
 #endif

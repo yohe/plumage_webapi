@@ -320,19 +320,27 @@ boost::any PlumageWebApi::updateOAuthHandle(boost::any& parameter) {
 
     if(!consumerKey.empty()) {
         oauth->consumerKey_ = consumerKey;
+#ifdef DEBUG
         std::cout << "consumerKey = " << oauth->consumerKey_;
+#endif
     }
     if(!consumerSecret.empty()) {
         oauth->consumerSecret_ = consumerSecret;
+#ifdef DEBUG
         std::cout << "consumerSecret = " << oauth->consumerSecret_;
+#endif
     }
     if(!accessKey.empty()) {
         oauth->accessToken_ = accessKey;
+#ifdef DEBUG
         std::cout << "accessToken = " << oauth->accessToken_;
+#endif
     }
     if(!accessSecret.empty()) {
         oauth->accessTokenSecret_ = accessSecret;
+#ifdef DEBUG
         std::cout << "accessTokenSecret = " << oauth->accessTokenSecret_;
+#endif
     }
     return nullptr;
 }
@@ -512,7 +520,7 @@ void FtpApi::listUpFile(CURL* curl, const std::string& url, bool nameOnly, std::
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &writeOutputStream);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &os);
     if(nameOnly) {
-        curl_easy_setopt(curl, CURLOPT_DIRLISTONLY, &os);
+        curl_easy_setopt(curl, CURLOPT_DIRLISTONLY, 1);
     }
 
     CURLcode res;
@@ -538,9 +546,9 @@ void FtpApi::downloadFile(CURL* curl, const std::string& url, std::ostream& os) 
     res = curl_easy_perform(curl);
 #ifdef DEBUG
     std::cout << "Response : " << res << std::endl;
+    std::cout << std::endl;
 #endif
 
-    std::cout << std::endl;
 }
 
 void FtpApi::createDirectory(CURL* curl, const std::string& url, bool recursive) const {
@@ -815,8 +823,10 @@ std::map<std::string, std::string> OAuthApi::getRequestToken(CURL* curl, OAuthHa
     oauth->requestToken_ = keyValue.at( "oauth_token" );
     oauth->requestTokenSecret_ = keyValue.at( "oauth_token_secret" );
 
+#ifdef DEBUG
     std::cout << "RequestToken = " << oauth->requestToken_ << std::endl;
     std::cout << "RequestTokenSecret = " << oauth->requestTokenSecret_ << std::endl;
+#endif
 
     return std::move(keyValue);
 }
@@ -832,11 +842,11 @@ std::string OAuthApi::getOAuthSignature(std::string url, std::string query, std:
     signatureData += api.encodeToPercentEncoding(url) + '&';
     signatureData += api.encodeToPercentEncoding(sortedQuery);
 
-//#ifdef DEBUG
+#ifdef DEBUG
     std::cout << "------------------------------------------" << std::endl;
     std::cout << signatureData << std::endl;
     std::cout << "------------------------------------------" << std::endl;
-//#endif
+#endif
 
     std::string signature = getHMAC(type, secret, signatureData);
 
@@ -1012,9 +1022,9 @@ void OAuthApi::get(CURL* curl, OAuthHandle* oauth, std::string getUrl, std::stri
     std::cout << "URL = " << getUrl << std::endl;
 #endif
 
-//#ifdef DEBUG
+#ifdef DEBUG
     curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
-//#endif
+#endif
 
     api.get(curl, url, os);
 }
@@ -1111,8 +1121,10 @@ void OAuthApi::setOAuthHeader(CURL* curl, OAuthHandle* oauth, OAuthApi::UseToken
     std::stringstream timestamp;
     timestamp << std::time(0);
     ss << "oauth_timestamp=" << timestamp.str() << "&"
-       << "oauth_version=" << "1.0" << "&"
-       << data << "&";
+       << "oauth_version=" << "1.0&";
+    if(!data.empty()) {
+        ss << data << "&";
+    }
 
     std::string signatureKey = oauth->consumerSecret_ + '&';
     if(useTokenType == REQUEST_TOKEN) {
@@ -1146,9 +1158,9 @@ void OAuthApi::setOAuthHeader(CURL* curl, OAuthHandle* oauth, OAuthApi::UseToken
     authStr << ", oauth_version=\"1.0\"";
     slist = curl_slist_append(slist, authStr.str().c_str());
 
-//#ifdef DEBUG
+#ifdef DEBUG
     std::cout << "Authorization Header : " << authStr.str() << std::endl;
-//#endif
+#endif
 
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, slist);
 }
